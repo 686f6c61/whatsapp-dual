@@ -1,0 +1,146 @@
+# =============================================================================
+# WhatsApp Dual - Electron Builder Configuration
+#
+# Author: 686f6c61
+# License: MIT
+# Repository: https://github.com/686f6c61/whatsapp-dual
+#
+# This file configures electron-builder for creating distributable packages.
+# It defines build targets, assets, dependencies, and publishing settings.
+#
+# Supported Platforms:
+# - Linux: .deb (Debian/Ubuntu), .AppImage (Universal), .snap (Snap Store)
+# - Architectures: x64, arm64
+#
+# Build Command:
+#   npm run build:linux
+#
+# Publishing:
+# Packages are automatically published to GitHub Releases when a tag is pushed.
+# =============================================================================
+
+# =============================================================================
+# Application Metadata
+# =============================================================================
+appId: com.whatsapp-dual.app
+productName: WhatsAppDual
+copyright: Copyright (c) 2024 WhatsApp Dual Contributors
+
+# =============================================================================
+# Directory Configuration
+# =============================================================================
+directories:
+  output: dist              # Where built packages are saved
+  buildResources: build     # Resources for the build process
+
+# =============================================================================
+# Files to Include
+# Specify which files to include in the application package
+# =============================================================================
+files:
+  - "src/**/*"
+  - "locales/**/*"
+  - "assets/**/*"
+  - "package.json"
+  - "!**/*.map"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/.bin"
+
+# =============================================================================
+# Extra Resources
+# Files copied to resources/ folder (accessible via process.resourcesPath)
+# =============================================================================
+extraResources:
+  - from: "locales"
+    to: "locales"
+    filter:
+      - "**/*"
+
+# =============================================================================
+# Linux Build Configuration
+# Targets: deb, AppImage, snap
+# The --no-sandbox flag is required for Electron 33+ on Linux
+# =============================================================================
+linux:
+  target:
+    - target: deb
+      arch:
+        - x64
+        - arm64
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+    - target: snap
+      arch:
+        - x64
+  category: Network;InstantMessaging;
+  icon: assets/icons
+  synopsis: WhatsApp Personal and Business in one app
+  description: Use WhatsApp Personal and WhatsApp Business simultaneously in a single desktop application.
+  desktop:
+    Name: WhatsApp Dual
+    Comment: WhatsApp Personal and Business in one app
+    Categories: Network;InstantMessaging;Chat;
+    Keywords: whatsapp;chat;messaging;business;
+    StartupWMClass: whatsapp-dual
+  # Required for Electron 33+ sandbox on Linux
+  executableArgs:
+    - "--no-sandbox"
+
+# =============================================================================
+# Debian Package (.deb) Configuration
+# For Ubuntu, Debian, Linux Mint, and derivatives
+# =============================================================================
+deb:
+  depends:
+    - libnotify4
+    - libxtst6
+    - libnss3
+    - libxss1
+    - libatk1.0-0
+    - libatk-bridge2.0-0
+    - libgtk-3-0
+    - libgbm1
+  packageCategory: net
+  priority: optional
+
+# =============================================================================
+# Snap Package Configuration
+# For distribution via the Snap Store
+# =============================================================================
+snap:
+  confinement: strict
+  grade: stable
+  plugs:
+    - default
+    - audio-playback
+    - camera
+    - screen-inhibit-control
+    - network
+    - network-bind
+    - desktop
+    - desktop-legacy
+    - home
+    - pulseaudio
+    - browser-support
+
+# =============================================================================
+# AppImage Configuration
+# Universal Linux format that runs on most distributions
+# =============================================================================
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
+# =============================================================================
+# Publishing Configuration
+# Publishes to GitHub Releases (used by electron-updater for auto-updates)
+# =============================================================================
+publish:
+  provider: github
+  releaseType: release
+
+# Auto-update configuration
+# electronUpdater:
+#   allowDowngrade: false

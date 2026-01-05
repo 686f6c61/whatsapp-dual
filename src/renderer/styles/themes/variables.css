@@ -1,0 +1,83 @@
+/**
+ * WhatsApp Dual - CSS Variables (Default Theme)
+ *
+ * Author: 686f6c61
+ * License: MIT
+ * Repository: https://github.com/686f6c61/whatsapp-dual
+ *
+ * This file defines the base CSS custom properties (variables) used
+ * throughout the application. These values serve as the default (light)
+ * theme and are overridden by light.css and dark.css based on the
+ * data-theme attribute on the document element.
+ *
+ * Color Palette:
+ * The color scheme is inspired by WhatsApp Web's design language,
+ * using greens for accents and a clean, minimal gray palette.
+ *
+ * Variable Categories:
+ * - Background colors (bg-*): Page and component backgrounds
+ * - Text colors (text-*): Typography colors with hierarchy
+ * - UI colors: Borders, hover states, accent colors
+ * - Shadows: Elevation effects for dropdowns and modals
+ * - Sizes: Standard dimensions for UI elements
+ * - Transitions: Animation timing for smooth interactions
+ *
+ * Usage:
+ * These variables are referenced using var(--variable-name) syntax.
+ * Example: background-color: var(--bg-primary);
+ */
+
+:root {
+  /* ==========================================================================
+     Background Colors
+     Used for page backgrounds, cards, and UI surfaces
+     ========================================================================== */
+  --bg-primary: #f0f2f5;       /* Main page background */
+  --bg-secondary: #ffffff;      /* Cards, menus, modals */
+  --bg-tertiary: #f5f6f6;       /* Subtle backgrounds, inputs */
+
+  /* ==========================================================================
+     Text Colors
+     Typography colors with visual hierarchy
+     ========================================================================== */
+  --text-primary: #111b21;      /* Main text, headings */
+  --text-secondary: #667781;    /* Secondary text, labels */
+  --text-muted: #8696a0;        /* Muted text, shortcuts, hints */
+
+  /* ==========================================================================
+     UI Colors
+     Interactive elements and visual feedback
+     ========================================================================== */
+  --border-color: #e9edef;      /* Borders and dividers */
+  --hover-color: #f5f6f6;       /* Hover states */
+  --active-color: #e9edef;      /* Active/selected states */
+
+  --accent-color: #00a884;      /* Primary accent (WhatsApp green) */
+  --accent-hover: #008f72;      /* Accent hover state */
+
+  --danger-color: #ea0038;      /* Error states, destructive actions */
+  --warning-color: #f7c94b;     /* Warning states */
+
+  /* ==========================================================================
+     Shadows
+     Elevation effects for floating elements
+     ========================================================================== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);    /* Subtle elevation */
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.15);  /* Dropdowns, menus */
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.2);   /* Modals, dialogs */
+
+  /* ==========================================================================
+     Sizes
+     Standard dimensions for UI elements
+     ========================================================================== */
+  --menu-height: 40px;          /* Height of the menu bar */
+  --border-radius: 8px;         /* Standard border radius */
+  --border-radius-sm: 4px;      /* Small border radius */
+
+  /* ==========================================================================
+     Transitions
+     Animation timing for smooth interactions
+     ========================================================================== */
+  --transition-fast: 0.15s ease;    /* Quick transitions (hover, focus) */
+  --transition-normal: 0.25s ease;  /* Standard transitions (theme switch) */
+}

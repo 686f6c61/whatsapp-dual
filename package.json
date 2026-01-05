@@ -1,0 +1,46 @@
+{
+  "name": "whatsapp-dual",
+  "version": "1.0.3",
+  "description": "WhatsApp Personal and Business in a single desktop app",
+  "main": "src/main/main.js",
+  "author": {
+    "name": "686f6c61",
+    "email": "686f6c61@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/686f6c61/whatsapp-dual",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/686f6c61/whatsapp-dual.git"
+  },
+  "bugs": {
+    "url": "https://github.com/686f6c61/whatsapp-dual/issues"
+  },
+  "keywords": [
+    "whatsapp",
+    "whatsapp-web",
+    "whatsapp-business",
+    "electron",
+    "desktop",
+    "linux",
+    "ubuntu"
+  ],
+  "scripts": {
+    "start": "electron . --no-sandbox",
+    "dev": "electron . --no-sandbox --enable-logging",
+    "build": "electron-builder --config build/electron-builder.yml",
+    "build:linux": "electron-builder --config build/electron-builder.yml --linux",
+    "build:deb": "electron-builder --config build/electron-builder.yml --linux deb",
+    "build:appimage": "electron-builder --config build/electron-builder.yml --linux AppImage",
+    "build:snap": "electron-builder --config build/electron-builder.yml --linux snap",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "electron-updater": "^6.3.9"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "app": {
+    "name": "WhatsApp Dual"
+  },
+  "menu": {
+    "personal": "Personal",
+    "business": "Business",
+    "settings": "Ajustes",
+    "preferences": "Preferencias",
+    "reload": "Recargar",
+    "quit": "Salir",
+    "help": "Ayuda",
+    "about": "Acerca de WhatsApp Dual",
+    "github": "Repositorio GitHub",
+    "shortcuts": "Atajos de teclado"
+  },
+  "settings": {
+    "title": "Ajustes",
+    "language": "Idioma",
+    "selectLanguage": "Idioma",
+    "behavior": "Comportamiento",
+    "startWithSystem": "Iniciar con el sistema",
+    "startMinimized": "Iniciar minimizado",
+    "minimizeToTray": "Minimizar a la bandeja",
+    "defaultAccount": "Cuenta por defecto",
+    "save": "Guardar",
+    "cancel": "Cancelar"
+  },
+  "about": {
+    "title": "Acerca de WhatsApp Dual",
+    "version": "Versión",
+    "description": "Usa WhatsApp Personal y Business en una sola app.",
+    "author": "Autor",
+    "license": "Licencia",
+    "ok": "Aceptar"
+  },
+  "updates": {
+    "title": "Actualizaciones",
+    "checkForUpdates": "Buscar actualizaciones",
+    "updateAvailable": "¡Actualización disponible!",
+    "available": "Actualización disponible",
+    "noUpdates": "No hay actualizaciones",
+    "upToDate": "Estás usando la última versión.",
+    "checkError": "No se pudo buscar actualizaciones",
+    "newVersion": "Nueva versión disponible",
+    "currentVersion": "Versión actual",
+    "availableVersion": "Versión disponible",
+    "download": "Descargar",
+    "later": "Más tarde",
+    "downloaded": "Actualización descargada",
+    "restartToInstall": "Reinicia la app para instalar la actualización.",
+    "restartNow": "Reiniciar ahora"
+  },
+  "accounts": {
+    "personal": "Personal",
+    "business": "Business"
+  },
+  "tray": {
+    "show": "Mostrar",
+    "hide": "Ocultar",
+    "quit": "Salir"
+  },
+  "notifications": {
+    "newMessage": "Nuevo mensaje",
+    "newMessages": "mensajes nuevos"
+  }
+}

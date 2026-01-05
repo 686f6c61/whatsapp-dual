@@ -1,0 +1,42 @@
+/**
+ * WhatsApp Dual - Light Theme
+ *
+ * Author: 686f6c61
+ * License: MIT
+ * Repository: https://github.com/686f6c61/whatsapp-dual
+ *
+ * Light theme variables applied when data-theme="light" is set
+ * on the document root element. These values override the defaults
+ * in variables.css.
+ *
+ * The light theme uses WhatsApp Web's light mode color palette:
+ * - Light gray backgrounds
+ * - Dark text for high contrast
+ * - Green accent colors
+ */
+
+:root[data-theme="light"] {
+  /* Background Colors */
+  --bg-primary: #f0f2f5;       /* Main page background */
+  --bg-secondary: #ffffff;      /* Cards, menus, modals */
+  --bg-tertiary: #f5f6f6;       /* Subtle backgrounds */
+
+  /* Text Colors */
+  --text-primary: #111b21;      /* Main text */
+  --text-secondary: #667781;    /* Secondary text */
+  --text-muted: #8696a0;        /* Muted text */
+
+  /* UI Colors */
+  --border-color: #e9edef;      /* Borders */
+  --hover-color: #f5f6f6;       /* Hover states */
+  --active-color: #e9edef;      /* Active states */
+
+  /* Accent Colors */
+  --accent-color: #00a884;      /* Primary green */
+  --accent-hover: #008f72;      /* Green hover */
+
+  /* Shadows - lighter for light theme */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.2);
+}

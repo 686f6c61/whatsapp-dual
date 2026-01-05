@@ -1,0 +1,42 @@
+/**
+ * WhatsApp Dual - Dark Theme
+ *
+ * Author: 686f6c61
+ * License: MIT
+ * Repository: https://github.com/686f6c61/whatsapp-dual
+ *
+ * Dark theme variables applied when data-theme="dark" is set
+ * on the document root element. These values override the defaults
+ * in variables.css.
+ *
+ * The dark theme uses WhatsApp Web's dark mode color palette:
+ * - Deep blue-gray backgrounds
+ * - Light text for readability
+ * - Same green accent but brighter on hover for contrast
+ */
+
+:root[data-theme="dark"] {
+  /* Background Colors - Deep blue-gray palette */
+  --bg-primary: #111b21;       /* Main page background */
+  --bg-secondary: #202c33;      /* Cards, menus, modals */
+  --bg-tertiary: #2a3942;       /* Subtle backgrounds */
+
+  /* Text Colors - Light text for dark backgrounds */
+  --text-primary: #e9edef;      /* Main text */
+  --text-secondary: #aebac1;    /* Secondary text */
+  --text-muted: #8696a0;        /* Muted text */
+
+  /* UI Colors */
+  --border-color: #2a3942;      /* Borders (subtle) */
+  --hover-color: #2a3942;       /* Hover states */
+  --active-color: #3b4a54;      /* Active states */
+
+  /* Accent Colors - Brighter green for dark mode */
+  --accent-color: #00a884;      /* Primary green */
+  --accent-hover: #06cf9c;      /* Brighter green hover */
+
+  /* Shadows - Darker/more pronounced for dark theme */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.5);
+}
