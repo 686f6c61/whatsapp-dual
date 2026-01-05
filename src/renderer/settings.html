@@ -1,0 +1,126 @@
+<!--
+  WhatsApp Dual - Settings Page
+
+  Author: 686f6c61
+  License: MIT
+  Repository: https://github.com/686f6c61/whatsapp-dual
+
+  This modal window allows users to configure application preferences.
+  It opens as a child window of the main application window and
+  communicates with the main process via IPC.
+
+  Settings Available:
+  - Language: UI language selection (English/Spanish)
+  - Default account: Which account to show on startup
+  - Minimize to tray: Hide to tray when closing instead of quitting
+  - Start with system: Launch automatically on system startup
+  - Start minimized: Start hidden in the system tray
+
+  All settings are persisted using electron-store and take effect
+  immediately after saving. Language changes are previewed in real-time.
+
+  Associated files:
+  - js/settings.js: Form handling and settings persistence
+  - styles/settings.css: Settings form styling
+  - styles/main.css: Base styles and CSS variables
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Content Security Policy: Restrict script/style sources to same origin -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <title>Settings</title>
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/settings.css">
+</head>
+<body>
+  <div class="settings-container">
+    <!-- =========================================================================
+         Header
+         Contains the title and close button for the modal window.
+         ========================================================================= -->
+    <header class="settings-header">
+      <h1 data-i18n="settings.title">Settings</h1>
+      <button id="btn-close" class="close-button" aria-label="Close">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </header>
+
+    <!-- =========================================================================
+         Main Content
+         Contains all settings sections organized by category.
+         ========================================================================= -->
+    <main class="settings-content">
+      <!-- =======================================================================
+           Language Section
+           Allows users to change the UI language. Changes are previewed
+           immediately when selecting a different language.
+           ======================================================================= -->
+      <section class="settings-section">
+        <h2 data-i18n="settings.language">Language</h2>
+
+        <div class="setting-row">
+          <label for="select-language" data-i18n="settings.selectLanguage">Language</label>
+          <select id="select-language" class="setting-select">
+            <option value="en">English</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+      </section>
+
+      <!-- =======================================================================
+           Behavior Section
+           Controls how the application behaves on startup and when closed.
+           ======================================================================= -->
+      <section class="settings-section">
+        <h2 data-i18n="settings.behavior">Behavior</h2>
+
+        <!-- Default Account: Which account to show when the app starts -->
+        <div class="setting-row">
+          <label for="select-default-account" data-i18n="settings.defaultAccount">Default account</label>
+          <select id="select-default-account" class="setting-select">
+            <option value="personal">Personal</option>
+            <option value="business">Business</option>
+          </select>
+        </div>
+
+        <!-- Minimize to Tray: Hide to tray instead of closing when clicking X -->
+        <div class="setting-row">
+          <label for="check-tray" data-i18n="settings.minimizeToTray">Minimize to tray</label>
+          <input type="checkbox" id="check-tray" class="setting-checkbox">
+        </div>
+
+        <!-- Start with System: Auto-launch on system startup -->
+        <div class="setting-row">
+          <label for="check-startup" data-i18n="settings.startWithSystem">Start with system</label>
+          <input type="checkbox" id="check-startup" class="setting-checkbox">
+        </div>
+
+        <!-- Start Minimized: Start hidden in system tray -->
+        <div class="setting-row">
+          <label for="check-minimized" data-i18n="settings.startMinimized">Start minimized</label>
+          <input type="checkbox" id="check-minimized" class="setting-checkbox">
+        </div>
+      </section>
+    </main>
+
+    <!-- =========================================================================
+         Footer
+         Contains Cancel and Save buttons.
+         Keyboard shortcuts: Escape = Cancel, Ctrl+Enter = Save
+         ========================================================================= -->
+    <footer class="settings-footer">
+      <button id="btn-cancel" class="btn btn-secondary" data-i18n="settings.cancel">Cancel</button>
+      <button id="btn-save" class="btn btn-primary" data-i18n="settings.save">Save</button>
+    </footer>
+  </div>
+
+  <!-- Settings script: handles form interactions and IPC communication -->
+  <script src="js/settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,67 @@
+{
+  "app": {
+    "name": "WhatsApp Dual"
+  },
+  "menu": {
+    "personal": "Personal",
+    "business": "Business",
+    "settings": "Settings",
+    "preferences": "Preferences",
+    "reload": "Reload",
+    "quit": "Quit",
+    "help": "Help",
+    "about": "About WhatsApp Dual",
+    "github": "GitHub Repository",
+    "shortcuts": "Keyboard shortcuts"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "selectLanguage": "Language",
+    "behavior": "Behavior",
+    "startWithSystem": "Start with system",
+    "startMinimized": "Start minimized",
+    "minimizeToTray": "Minimize to tray",
+    "defaultAccount": "Default account",
+    "save": "Save",
+    "cancel": "Cancel"
+  },
+  "about": {
+    "title": "About WhatsApp Dual",
+    "version": "Version",
+    "description": "Use WhatsApp Personal and Business in a single app.",
+    "author": "Author",
+    "license": "License",
+    "ok": "OK"
+  },
+  "updates": {
+    "title": "Updates",
+    "checkForUpdates": "Check for updates",
+    "updateAvailable": "Update available!",
+    "available": "Update available",
+    "noUpdates": "No updates available",
+    "upToDate": "You are using the latest version.",
+    "checkError": "Could not check for updates",
+    "newVersion": "New version available",
+    "currentVersion": "Current version",
+    "availableVersion": "Available version",
+    "download": "Download",
+    "later": "Later",
+    "downloaded": "Update downloaded",
+    "restartToInstall": "Restart the app to install the update.",
+    "restartNow": "Restart now"
+  },
+  "accounts": {
+    "personal": "Personal",
+    "business": "Business"
+  },
+  "tray": {
+    "show": "Show",
+    "hide": "Hide",
+    "quit": "Quit"
+  },
+  "notifications": {
+    "newMessage": "New message",
+    "newMessages": "new messages"
+  }
+}

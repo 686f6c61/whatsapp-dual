@@ -1,0 +1,221 @@
+/**
+ * WhatsApp Dual - Main Stylesheet
+ *
+ * Author: 686f6c61
+ * License: MIT
+ * Repository: https://github.com/686f6c61/whatsapp-dual
+ *
+ * This is the primary stylesheet for the application.
+ * It defines styles for the main window's UI elements,
+ * including the floating menu bar and dropdown menu.
+ *
+ * CSS Architecture:
+ * - Theme variables are loaded from themes/ folder
+ * - Light/dark themes are applied via [data-theme] selector
+ * - All colors use CSS custom properties for theming
+ *
+ * Sections:
+ * 1. Theme Imports
+ * 2. Reset & Base Styles
+ * 3. Menu Bar
+ * 4. Dropdown Menu
+ * 5. Focus & Accessibility Styles
+ * 6. Animations
+ * 7. Scrollbar Customization
+ */
+
+/* =============================================================================
+   Theme Imports
+   Load CSS variables and theme-specific overrides
+   ============================================================================= */
+@import './themes/variables.css';
+@import './themes/light.css';
+@import './themes/dark.css';
+
+/* =============================================================================
+   Reset & Base Styles
+   ============================================================================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+/* =============================================================================
+   Menu Bar
+   Floating menu positioned at the top-left of the window.
+   The -webkit-app-region: drag makes it draggable for window movement.
+   ============================================================================= */
+.menu-bar {
+  height: var(--menu-height);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  position: relative;
+  -webkit-app-region: drag;
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.menu-button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  -webkit-app-region: no-drag;
+}
+
+.menu-button:hover {
+  background-color: var(--hover-color);
+  color: var(--text-primary);
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* =============================================================================
+   Dropdown Menu
+   Account switching menu that appears when clicking the menu button.
+   Contains Personal/Business buttons, Settings, About, and Quit options.
+   ============================================================================= */
+.dropdown {
+  position: absolute;
+  top: calc(var(--menu-height) - 4px);
+  left: 8px;
+  background-color: var(--bg-secondary);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+  min-width: 240px;
+  padding: 6px 0;
+  z-index: 1000;
+  border: 1px solid var(--border-color);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.dropdown.hidden {
+  display: none;
+}
+
+.menu-item {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-primary);
+  font-size: 14px;
+  transition: background-color var(--transition-fast);
+  text-align: left;
+}
+
+.menu-item:hover {
+  background-color: var(--hover-color);
+}
+
+.menu-item .icon {
+  width: 18px;
+  height: 18px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.menu-label {
+  flex: 1;
+}
+
+.menu-shortcut {
+  color: var(--text-muted);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.active-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: transparent;
+  flex-shrink: 0;
+  transition: background-color var(--transition-fast);
+}
+
+.active-indicator.active {
+  background-color: var(--accent-color);
+}
+
+.menu-separator {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 6px 0;
+}
+
+/* =============================================================================
+   Focus & Accessibility Styles
+   Visible focus indicators for keyboard navigation
+   ============================================================================= */
+.menu-button:focus,
+.menu-item:focus {
+  outline: 2px solid var(--accent-color);
+  outline-offset: -2px;
+}
+
+/* =============================================================================
+   Animations
+   Smooth fade-in effect for dropdown menu
+   ============================================================================= */
+.dropdown {
+  animation: fadeIn var(--transition-fast);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =============================================================================
+   Scrollbar Customization
+   Custom scrollbar styling that adapts to light/dark theme
+   ============================================================================= */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
