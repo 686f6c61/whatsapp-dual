@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.1.0
+ * @version 1.1.5
  *
  * This module manages the system tray (notification area) integration.
  * It provides quick access to the app from the system tray, allowing
@@ -35,6 +35,15 @@ let tray = null;
 /** @type {BrowserWindow|null} Reference to the main window */
 let mainWindow = null;
 
+/** @type {NativeImage|null} Normal tray icon */
+let normalIcon = null;
+
+/** @type {NativeImage|null} Message notification icon */
+let messageIcon = null;
+
+/** @type {boolean} Current notification state */
+let hasNotification = false;
+
 // =============================================================================
 // Tray Creation
 // =============================================================================
@@ -54,14 +63,17 @@ let mainWindow = null;
 function createTray(window) {
   mainWindow = window;
 
-  // Load and resize the tray icon
+  // Load and resize the normal tray icon
   const iconPath = path.join(__dirname, '../../assets/icons/icon.png');
   const icon = nativeImage.createFromPath(iconPath);
+  normalIcon = icon.resize({ width: 22, height: 22 });
 
-  // Resize icon for tray (recommended 16x16 or 22x22 for Linux)
-  const trayIcon = icon.resize({ width: 22, height: 22 });
+  // Load and resize the message notification icon
+  const messageIconPath = path.join(__dirname, '../../assets/icons/icon-message.png');
+  const msgIcon = nativeImage.createFromPath(messageIconPath);
+  messageIcon = msgIcon.resize({ width: 22, height: 22 });
 
-  tray = new Tray(trayIcon);
+  tray = new Tray(normalIcon);
   tray.setToolTip('WhatsApp Dual');
 
   // Initialize context menu
@@ -196,6 +208,45 @@ function setMainWindow(window) {
 }
 
 // =============================================================================
+// Notification Icon
+// =============================================================================
+
+/**
+ * Sets the notification state and updates the tray icon accordingly.
+ *
+ * When there are unread messages, shows the message notification icon.
+ * When all messages are read, shows the normal icon.
+ *
+ * @param {boolean} hasMessages - Whether there are unread messages
+ * @returns {void}
+ */
+function setNotificationState(hasMessages) {
+  if (!tray) return;
+
+  // Only update if state changed
+  if (hasNotification === hasMessages) return;
+
+  hasNotification = hasMessages;
+
+  if (hasMessages && messageIcon) {
+    tray.setImage(messageIcon);
+    tray.setToolTip('WhatsApp Dual - New messages');
+  } else if (normalIcon) {
+    tray.setImage(normalIcon);
+    tray.setToolTip('WhatsApp Dual');
+  }
+}
+
+/**
+ * Gets the current notification state.
+ *
+ * @returns {boolean} Whether there are unread messages
+ */
+function hasUnreadMessages() {
+  return hasNotification;
+}
+
+// =============================================================================
 // Module Exports
 // =============================================================================
 
@@ -203,5 +254,7 @@ module.exports = {
   createTray,
   updateContextMenu,
   destroyTray,
-  setMainWindow
+  setMainWindow,
+  setNotificationState,
+  hasUnreadMessages
 };
