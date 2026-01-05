@@ -11,6 +11,7 @@ WhatsApp Dual is designed to enhance productivity for users who rely on both Wha
 - **PIN Protection**: Secure your sessions with a 4-8 digit PIN using PBKDF2 encryption
 - **Auto-Lock**: Automatically lock after inactivity, system suspend, or screen lock
 - **System Tray Integration**: Minimize to the system tray and keep running in the background
+- **Tray Notification Indicator**: Visual indicator in the tray icon when you have unread messages
 - **Theme Support**: Follows your system's dark/light preference automatically
 - **Multi-language**: Interface available in English and Spanish, with easy addition of new languages
 - **Native Notifications**: Receive desktop notifications for each account separately
@@ -65,10 +66,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.1.0_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.1.5_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.1.0_amd64.deb
+sudo dpkg -i whatsapp-dual_1.1.5_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -80,30 +81,16 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.1.0-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.1.5-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.1.0-x86_64.AppImage
+chmod +x WhatsAppDual-1.1.5-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.1.0-x86_64.AppImage
+./WhatsAppDual-1.1.5-x86_64.AppImage
 ```
 
-### Option 3: Snap Package
-
-For systems with Snap support, download the .snap file from GitHub Releases and install it locally.
-
-```bash
-# Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.1.0_amd64.snap
-
-# Install the snap package
-sudo snap install whatsapp-dual_1.1.0_amd64.snap --dangerous
-```
-
-Note: The `--dangerous` flag is required for locally downloaded snaps that aren't from the Snap Store.
-
-### Option 4: Build from Source
+### Option 3: Build from Source
 
 For developers or users who prefer to build from source, the process is straightforward with npm.
 

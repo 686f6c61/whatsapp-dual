@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.1.0
+ * @version 1.1.5
  *
  * This is the main Electron process that orchestrates the entire application.
  * It creates and manages the main window with two isolated BrowserViews,
@@ -30,7 +30,7 @@ const { app, BrowserWindow, BrowserView, globalShortcut, ipcMain, dialog } = req
 const path = require('path');
 const Store = require('electron-store');
 const { WHATSAPP_URL, ACCOUNTS, WINDOW_CONFIG, SHORTCUTS } = require('../shared/constants');
-const { createTray, destroyTray, updateContextMenu } = require('./tray');
+const { createTray, destroyTray, updateContextMenu, setNotificationState } = require('./tray');
 const { createMenu } = require('./menu');
 const i18n = require('../shared/i18n');
 const updater = require('./updater');
@@ -165,6 +165,31 @@ function createWindow() {
 // =============================================================================
 
 /**
+ * Checks if either WhatsApp view has unread messages.
+ *
+ * WhatsApp Web shows unread count in the page title as "(X) WhatsApp"
+ * where X is the number of unread messages/chats.
+ *
+ * @returns {void}
+ */
+function checkForUnreadMessages() {
+  const unreadPattern = /^\(\d+\)/;
+  let hasUnread = false;
+
+  // Check both views for unread messages
+  Object.values(views).forEach(view => {
+    if (view && view.webContents) {
+      const title = view.webContents.getTitle();
+      if (unreadPattern.test(title)) {
+        hasUnread = true;
+      }
+    }
+  });
+
+  setNotificationState(hasUnread);
+}
+
+/**
  * Creates isolated BrowserViews for Personal and Business WhatsApp accounts.
  *
  * Each BrowserView uses a separate session partition to ensure complete
@@ -189,6 +214,11 @@ function createWhatsAppViews() {
   views.personal.webContents.setUserAgent(USER_AGENT);
   views.personal.webContents.loadURL(WHATSAPP_URL);
 
+  // Listen for title changes to detect unread messages
+  views.personal.webContents.on('page-title-updated', () => {
+    checkForUnreadMessages();
+  });
+
   // Create Business view
   views.business = new BrowserView({
     webPreferences: {
@@ -199,6 +229,11 @@ function createWhatsAppViews() {
   });
   views.business.webContents.setUserAgent(USER_AGENT);
   views.business.webContents.loadURL(WHATSAPP_URL);
+
+  // Listen for title changes to detect unread messages
+  views.business.webContents.on('page-title-updated', () => {
+    checkForUnreadMessages();
+  });
 }
 
 /**

@@ -5,6 +5,16 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-01-06
+
+### Added
+
+- **Tray Notification Indicator**: Visual indicator in the system tray when you have unread messages
+  - Tray icon changes to message icon when any account has unread messages
+  - Automatically detects unread messages from page title
+  - Returns to normal icon when all messages are read
+  - Works with both Personal and Business accounts
+
 ## [1.1.0] - 2026-01-05
 
 ### Added
@@ -124,6 +134,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.1.5 | 2026-01-06 | Tray notification indicator for unread messages |
 | 1.1.0 | 2026-01-05 | PIN protection, auto-lock, security features |
 | 1.0.3 | 2025-01-05 | Auto-updates, Electron 33, documentation |
 | 1.0.2 | 2025-01-04 | Internationalization, Spanish support |
@@ -131,6 +142,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 | 1.0.0 | 2025-01-02 | Initial release |
 
 ## Upgrade Notes
+
+### From 1.1.0 to 1.1.5
+
+No manual intervention required. The tray notification indicator works automatically.
 
 ### From 1.0.3 to 1.1.0
 
