@@ -225,3 +225,111 @@
   outline: 2px solid var(--accent-color);
   outline-offset: 2px;
 }
+
+/* =============================================================================
+   Security Settings
+   Styles for PIN protection and auto-lock settings
+   ============================================================================= */
+
+/* Subsection headers (h3) */
+.setting-subsection {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+
+.setting-subsection:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.setting-subsection h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Label with description */
+.setting-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.setting-label-group label {
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.setting-description {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.setting-warning {
+  color: var(--danger-color, #dc3545);
+}
+
+/* Inline settings (select + text) */
+.setting-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.setting-inline span {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+/* Small select boxes */
+.setting-select-small {
+  min-width: 80px;
+  padding: 6px 28px 6px 10px;
+}
+
+/* Small buttons */
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+/* Danger button */
+.btn-danger {
+  background-color: var(--danger-color, #dc3545);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: var(--danger-hover, #c82333);
+}
+
+/* PIN buttons row */
+.pin-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  padding: 8px 0;
+}
+
+/* Danger row (for delete on max attempts) */
+.setting-row-danger {
+  background-color: rgba(220, 53, 69, 0.05);
+  margin: 0 -20px;
+  padding: 12px 20px;
+  border-radius: var(--border-radius-sm);
+}
+
+/* Disabled state for timeout row */
+#autolock-timeout-row {
+  transition: opacity var(--transition-fast);
+}
+
+#autolock-timeout-row select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

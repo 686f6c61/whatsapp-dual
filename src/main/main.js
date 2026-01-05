@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
+ * @version 1.1.0
  *
  * This is the main Electron process that orchestrates the entire application.
  * It creates and manages the main window with two isolated BrowserViews,
@@ -34,6 +34,7 @@ const { createTray, destroyTray, updateContextMenu } = require('./tray');
 const { createMenu } = require('./menu');
 const i18n = require('../shared/i18n');
 const updater = require('./updater');
+const security = require('./security');
 
 // =============================================================================
 // Configuration and State
@@ -60,6 +61,12 @@ let currentAccount = ACCOUNTS.PERSONAL.id;
 
 /** @type {boolean} Flag to track if app is in quitting state */
 let isQuitting = false;
+
+/** @type {boolean} Flag to track if app is showing lock screen */
+let isShowingLockScreen = false;
+
+/** @type {BrowserWindow|null} Lock screen window */
+let lockWindow = null;
 
 /**
  * Custom User-Agent string to avoid WhatsApp Web blocking.
@@ -281,9 +288,9 @@ function createSettingsWindow() {
 
   settingsWindow = new BrowserWindow({
     width: 480,
-    height: 520,
+    height: 700,
     minWidth: 400,
-    minHeight: 400,
+    minHeight: 600,
     parent: mainWindow,
     modal: true,
     title: 'Settings',
@@ -330,6 +337,163 @@ function createAboutWindow() {
     buttons: [i18n.t('about.ok', 'OK')],
     icon: path.join(__dirname, '../../assets/icons/icon.png')
   });
+}
+
+// =============================================================================
+// Security - Lock Screen
+// =============================================================================
+
+/**
+ * Shows the lock screen window.
+ *
+ * Creates a fullscreen modal window that requires PIN entry to unlock.
+ * This is called on app start (if PIN is enabled), on auto-lock timeout,
+ * and when the system is suspended/locked.
+ *
+ * @returns {void}
+ */
+function showLockScreen() {
+  if (lockWindow) {
+    lockWindow.focus();
+    return;
+  }
+
+  isShowingLockScreen = true;
+
+  // Hide main window views
+  if (mainWindow) {
+    const currentView = mainWindow.getBrowserView();
+    if (currentView) {
+      mainWindow.removeBrowserView(currentView);
+    }
+  }
+
+  lockWindow = new BrowserWindow({
+    width: 400,
+    height: 600,
+    parent: mainWindow,
+    modal: true,
+    frame: false,
+    resizable: false,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    alwaysOnTop: true,
+    title: 'WhatsApp Dual - Locked',
+    icon: path.join(__dirname, '../../assets/icons/icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload-lock.js')
+    }
+  });
+
+  lockWindow.loadFile(path.join(__dirname, '../renderer/lock.html'));
+
+  lockWindow.on('closed', () => {
+    lockWindow = null;
+  });
+}
+
+/**
+ * Hides the lock screen and shows the main app.
+ *
+ * Called after successful PIN verification.
+ *
+ * @returns {void}
+ */
+function hideLockScreen() {
+  isShowingLockScreen = false;
+
+  if (lockWindow) {
+    lockWindow.close();
+    lockWindow = null;
+  }
+
+  // Restore main window view
+  if (mainWindow) {
+    // Re-add the view for current account
+    const view = views[currentAccount];
+    if (view) {
+      mainWindow.setBrowserView(view);
+      updateViewBounds();
+    }
+    mainWindow.show();
+    mainWindow.focus();
+  }
+}
+
+/**
+ * Shows the PIN setup screen for first-time configuration.
+ *
+ * @returns {void}
+ */
+function showPINSetupScreen() {
+  if (lockWindow) {
+    lockWindow.close();
+  }
+
+  lockWindow = new BrowserWindow({
+    width: 360,
+    height: 580,
+    parent: mainWindow,
+    modal: false,
+    frame: false,
+    resizable: false,
+    movable: true,
+    minimizable: false,
+    maximizable: false,
+    closable: true,
+    title: 'WhatsApp Dual - Setup PIN',
+    icon: path.join(__dirname, '../../assets/icons/icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload-lock.js')
+    }
+  });
+
+  lockWindow.loadFile(path.join(__dirname, '../renderer/lock-setup.html'));
+
+  lockWindow.on('closed', () => {
+    lockWindow = null;
+    isShowingLockScreen = false;
+  });
+}
+
+/**
+ * Initialize security features.
+ *
+ * Sets up auto-lock, file protection, and integrity checks.
+ *
+ * @returns {void}
+ */
+function initializeSecurity() {
+  // Register IPC handlers for security operations
+  security.registerIPCHandlers();
+
+  // Secure session files with restrictive permissions
+  security.secureSessionFiles();
+
+  // Verify session integrity on startup
+  const integrity = security.verifySessionIntegrity();
+  if (!integrity.verified && !integrity.firstRun) {
+    security.showIntegrityWarning();
+  }
+
+  // Initialize auto-lock with callbacks
+  security.initAutoLock(
+    mainWindow,
+    () => {
+      // onLock callback
+      showLockScreen();
+    },
+    () => {
+      // onUnlock callback
+      hideLockScreen();
+    }
+  );
 }
 
 // =============================================================================
@@ -440,6 +604,32 @@ ipcMain.on('quit-app', () => {
 });
 
 // =============================================================================
+// Security IPC Handlers
+// =============================================================================
+
+/** Handle PIN setup completion - close setup window and show main app */
+ipcMain.on('security:pinSetupComplete', () => {
+  hideLockScreen();
+});
+
+/** Handle skip PIN setup - close setup window and show main app */
+ipcMain.on('security:skipPINSetup', () => {
+  hideLockScreen();
+});
+
+/** Handle manual lock request from settings or menu */
+ipcMain.on('security:lockNow', () => {
+  if (security.isPINEnabled()) {
+    security.lockApp();
+  }
+});
+
+/** Handle opening PIN setup from settings */
+ipcMain.on('security:setupPIN', () => {
+  showPINSetupScreen();
+});
+
+// =============================================================================
 // Application Lifecycle
 // =============================================================================
 
@@ -452,16 +642,24 @@ ipcMain.on('quit-app', () => {
 app.whenReady().then(() => {
   createWindow();
   registerShortcuts();
+  initializeSecurity();
+
+  // Show lock screen on startup if PIN is enabled
+  if (security.isPINEnabled()) {
+    showLockScreen();
+  }
 });
 
 /**
  * Pre-quit handler.
  *
  * Sets the quitting flag to prevent the minimize-to-tray behavior
- * from blocking the actual quit operation.
+ * from blocking the actual quit operation. Also saves session hashes
+ * for integrity verification on next startup.
  */
 app.on('before-quit', () => {
   isQuitting = true;
+  security.saveSessionHashes();
 });
 
 /**

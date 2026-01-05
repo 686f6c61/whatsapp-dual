@@ -12,7 +12,8 @@
     "help": "Ayuda",
     "about": "Acerca de WhatsApp Dual",
     "github": "Repositorio GitHub",
-    "shortcuts": "Atajos de teclado"
+    "shortcuts": "Atajos de teclado",
+    "lockNow": "Bloquear ahora"
   },
   "settings": {
     "title": "Ajustes",
@@ -24,7 +25,28 @@
     "minimizeToTray": "Minimizar a la bandeja",
     "defaultAccount": "Cuenta por defecto",
     "save": "Guardar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "security": "Seguridad",
+    "pinProtection": "Protección con PIN",
+    "pinEnabled": "Activar bloqueo con PIN",
+    "pinEnabledDesc": "Requerir PIN para acceder a la app",
+    "setupPin": "Configurar PIN",
+    "changePin": "Cambiar PIN",
+    "removePin": "Eliminar PIN",
+    "autoLock": "Bloqueo automático",
+    "autoLockEnabled": "Bloquear tras inactividad",
+    "autoLockTimeout": "Bloquear después de",
+    "minutes": "minutos",
+    "lockOnSuspend": "Bloquear al suspender el sistema",
+    "lockOnScreenLock": "Bloquear al bloquear pantalla",
+    "advancedSecurity": "Seguridad avanzada",
+    "maxAttempts": "Máximo de intentos",
+    "lockoutDuration": "Duración del bloqueo",
+    "deleteOnMaxAttempts": "Borrar sesiones tras máx. intentos",
+    "deleteOnMaxAttemptsWarning": "Advertencia: Esto borrará todas las sesiones de WhatsApp si se alcanzan los intentos máximos",
+    "lockNow": "Bloquear ahora",
+    "lockNowDesc": "Bloquear la app inmediatamente",
+    "lockNowBtn": "Bloquear"
   },
   "about": {
     "title": "Acerca de WhatsApp Dual",
@@ -63,5 +85,33 @@
   "notifications": {
     "newMessage": "Nuevo mensaje",
     "newMessages": "mensajes nuevos"
+  },
+  "lock": {
+    "enterPin": "Introduce tu PIN",
+    "incorrectPin": "PIN incorrecto",
+    "attemptsRemaining": "intentos restantes",
+    "lockedOut": "Bloqueado. Inténtalo en",
+    "forgotPin": "¿Olvidaste tu PIN?",
+    "resetTitle": "Resetear App",
+    "resetWarning": "Esto eliminará todas las sesiones de WhatsApp. Necesitarás escanear los códigos QR de nuevo.",
+    "cancel": "Cancelar",
+    "resetConfirm": "Resetear todo",
+    "unlocked": "¡Desbloqueado!"
+  },
+  "setup": {
+    "title": "Configurar PIN",
+    "enterNew": "Introduce un nuevo PIN (4-8 dígitos)",
+    "confirmPin": "Confirma tu PIN",
+    "pinMismatch": "Los PIN no coinciden. Inténtalo de nuevo.",
+    "pinSet": "¡PIN configurado correctamente!",
+    "reqLength": "4-8 dígitos",
+    "reqNumbers": "Solo números",
+    "skip": "Omitir por ahora"
+  },
+  "security": {
+    "alert": "Alerta de Seguridad",
+    "sessionModified": "Los archivos de sesión pueden haber sido modificados externamente.",
+    "sessionModifiedDetail": "Tus sesiones de WhatsApp pueden haber sido accedidas o manipuladas mientras la app estaba cerrada. Considera cerrar sesión y escanear el código QR de nuevo por seguridad.",
+    "logoutAll": "Cerrar todas las sesiones"
   }
 }

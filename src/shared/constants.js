@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
+ * @version 1.1.0
  *
  * This module centralizes all application constants to ensure consistency
  * across the codebase and simplify configuration management.

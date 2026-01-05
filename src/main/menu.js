@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
+ * @version 1.1.0
  *
  * This module creates and manages the native application menu bar.
  * The menu provides quick access to all app features and is fully
@@ -25,6 +25,7 @@
 const { Menu, app, dialog } = require('electron');
 const i18n = require('../shared/i18n');
 const updater = require('./updater');
+const security = require('./security');
 
 // =============================================================================
 // Menu Creation
@@ -52,7 +53,7 @@ const updater = require('./updater');
 function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow) {
   // Add visual indicator to Help menu when update is available
   const helpLabel = updater.isUpdateAvailable()
-    ? `${i18n.t('menu.help', 'Help')} 🔴`
+    ? `${i18n.t('menu.help', 'Help')} (!)`
     : i18n.t('menu.help', 'Help');
 
   // Define the complete menu template
@@ -86,6 +87,16 @@ function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow) {
           accelerator: 'CmdOrCtrl+,',
           click: () => openSettingsFn()
         },
+        {
+          label: i18n.t('menu.lockNow', 'Lock now'),
+          accelerator: 'CmdOrCtrl+L',
+          visible: security.isPINEnabled(),
+          click: () => {
+            if (security.isPINEnabled()) {
+              security.lockApp();
+            }
+          }
+        },
         { type: 'separator' },
         {
           label: i18n.t('menu.reload', 'Reload'),
@@ -112,7 +123,7 @@ function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow) {
         // Update check / download item
         {
           label: updater.isUpdateAvailable()
-            ? `${i18n.t('updates.updateAvailable', 'Update available!')} 🔴`
+            ? `${i18n.t('updates.updateAvailable', 'Update available!')} (!)`
             : i18n.t('updates.checkForUpdates', 'Check for updates'),
           click: () => {
             if (updater.isUpdateAvailable()) {
@@ -132,7 +143,7 @@ function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow) {
               type: 'info',
               title: i18n.t('menu.shortcuts', 'Keyboard shortcuts'),
               message: i18n.t('menu.shortcuts', 'Keyboard shortcuts'),
-              detail: `Ctrl+1 → Personal\nCtrl+2 → Business\nCtrl+, → ${i18n.t('menu.preferences', 'Preferences')}\nCtrl+R → ${i18n.t('menu.reload', 'Reload')}\nCtrl+Q → ${i18n.t('menu.quit', 'Quit')}`,
+              detail: `Ctrl+1 → Personal\nCtrl+2 → Business\nCtrl+, → ${i18n.t('menu.preferences', 'Preferences')}\nCtrl+L → ${i18n.t('menu.lockNow', 'Lock now')}\nCtrl+R → ${i18n.t('menu.reload', 'Reload')}\nCtrl+Q → ${i18n.t('menu.quit', 'Quit')}`,
               buttons: [i18n.t('about.ok', 'OK')]
             });
           }

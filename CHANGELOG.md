@@ -5,6 +5,48 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-01-05
+
+### Added
+
+- **PIN Protection**: Secure your WhatsApp sessions with a 4-8 digit PIN
+  - PBKDF2-SHA512 hashing with 100,000 iterations
+  - Secure storage using OS keychain (libsecret on Linux)
+  - PIN required on app startup when enabled
+- **Auto-Lock**: Automatically lock the application after inactivity
+  - Configurable timeout from 1-30 minutes (default: 5 minutes)
+  - Lock on system suspend
+  - Lock on screen lock
+- **Quick Lock**: Lock application instantly with Ctrl+L or from Settings menu
+- **Brute Force Protection**: Progressive delays after failed PIN attempts
+  - No delay for first 3 attempts
+  - 5 second delay after 4-5 attempts
+  - 30 second delay after 6-7 attempts
+  - 5 minute delay after 8-9 attempts
+  - 30 minute lockout after 10+ attempts
+- **Paranoia Mode**: Optional automatic session deletion after max failed attempts
+  - Uses secure 3-pass random data overwrite
+  - Ensures complete data destruction
+- **Lock Screen UI**: Modern numpad interface for PIN entry
+  - Visual feedback for PIN input
+  - Lockout countdown timer
+  - Forgot PIN with full reset option
+- **Security Settings Panel**: Complete configuration in Settings window
+  - PIN setup, change, and removal
+  - Auto-lock configuration
+  - Advanced security options
+
+### Changed
+
+- Settings window height increased to accommodate security panel
+- Menu now includes "Lock now" option when PIN is enabled
+
+### Security
+
+- PIN never stored in plain text
+- Session data protected from unauthorized access
+- No backdoor or recovery mechanism by design
+
 ## [1.0.3] - 2025-01-05
 
 ### Added
@@ -82,12 +124,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.1.0 | 2026-01-05 | PIN protection, auto-lock, security features |
 | 1.0.3 | 2025-01-05 | Auto-updates, Electron 33, documentation |
 | 1.0.2 | 2025-01-04 | Internationalization, Spanish support |
 | 1.0.1 | 2025-01-03 | System tray integration |
 | 1.0.0 | 2025-01-02 | Initial release |
 
 ## Upgrade Notes
+
+### From 1.0.3 to 1.1.0
+
+No manual intervention required. Security features are optional and disabled by default. To enable PIN protection, go to Settings > Security and set up a PIN.
 
 ### From 1.0.2 to 1.0.3
 

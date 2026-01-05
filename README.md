@@ -8,6 +8,8 @@ WhatsApp Dual is designed to enhance productivity for users who rely on both Wha
 
 - **Dual Accounts**: Run WhatsApp Personal and Business simultaneously with complete session isolation
 - **Quick Switching**: Change between accounts instantly with `Ctrl+1` (Personal) and `Ctrl+2` (Business)
+- **PIN Protection**: Secure your sessions with a 4-8 digit PIN using PBKDF2 encryption
+- **Auto-Lock**: Automatically lock after inactivity, system suspend, or screen lock
 - **System Tray Integration**: Minimize to the system tray and keep running in the background
 - **Theme Support**: Follows your system's dark/light preference automatically
 - **Multi-language**: Interface available in English and Spanish, with easy addition of new languages
@@ -63,10 +65,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.0.3_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.1.0_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.0.3_amd64.deb
+sudo dpkg -i whatsapp-dual_1.1.0_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -78,13 +80,13 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.0.3-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.1.0-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.0.3-x86_64.AppImage
+chmod +x WhatsAppDual-1.1.0-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.0.3-x86_64.AppImage
+./WhatsAppDual-1.1.0-x86_64.AppImage
 ```
 
 ### Option 3: Snap Package
@@ -93,10 +95,10 @@ For systems with Snap support, download the .snap file from GitHub Releases and 
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.0.3_amd64.snap
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.1.0_amd64.snap
 
 # Install the snap package
-sudo snap install whatsapp-dual_1.0.3_amd64.snap --dangerous
+sudo snap install whatsapp-dual_1.1.0_amd64.snap --dangerous
 ```
 
 Note: The `--dangerous` flag is required for locally downloaded snaps that aren't from the Snap Store.
@@ -129,6 +131,7 @@ Keyboard shortcuts provide quick access to the most common actions, allowing you
 | `Ctrl+1` | Switch to Personal account |
 | `Ctrl+2` | Switch to Business account |
 | `Ctrl+,` | Open Settings |
+| `Ctrl+L` | Lock application (when PIN enabled) |
 | `Ctrl+R` | Reload current view |
 | `Ctrl+Q` | Quit application |
 
@@ -143,6 +146,61 @@ The settings window allows you to customize WhatsApp Dual's behavior to match yo
 - **Minimize to Tray**: When enabled, closing the window minimizes to the system tray instead of quitting
 - **Start with System**: Automatically launch WhatsApp Dual when you log in
 - **Start Minimized**: When combined with auto-start, launches directly to the system tray
+
+## Security
+
+WhatsApp Dual includes comprehensive security features to protect your WhatsApp sessions from unauthorized access. These features are especially important if you share your computer with others or work in environments where you may need to step away from your desk. The security system uses industry-standard encryption (PBKDF2 with 100,000 iterations) to store your PIN securely in the operating system's keychain.
+
+### PIN Protection
+
+The PIN protection feature requires a 4-8 digit code to access the application. Once enabled, you'll need to enter your PIN every time you start the app, when the auto-lock triggers, or when you manually lock the application. Your PIN is never stored in plain text—it's hashed using PBKDF2-SHA512 with a unique salt and stored securely using the operating system's credential storage (libsecret on Linux).
+
+| Feature | Description |
+|---------|-------------|
+| PIN Length | 4-8 digits |
+| Encryption | PBKDF2-SHA512, 100,000 iterations |
+| Storage | OS keychain (libsecret) |
+| Setup | Settings → Security → Set up PIN |
+
+### Auto-Lock
+
+The auto-lock feature automatically locks the application after a period of inactivity or when your system enters specific states. This ensures your WhatsApp sessions remain protected even if you forget to lock the app manually.
+
+| Trigger | Description | Default |
+|---------|-------------|---------|
+| Inactivity timeout | Lock after 1-30 minutes without activity | 5 minutes |
+| System suspend | Lock when computer goes to sleep | Enabled |
+| Screen lock | Lock when you lock your screen | Enabled |
+
+### Quick Lock Methods
+
+When you need to step away quickly, WhatsApp Dual provides multiple ways to lock the application instantly:
+
+- **Keyboard shortcut**: Press `Ctrl+L` to lock immediately
+- **Menu**: Settings → Lock now
+- **Settings panel**: Security → Lock button
+
+### Failed Attempts Protection
+
+To prevent unauthorized access through brute force attacks, WhatsApp Dual implements progressive delays and lockouts after failed PIN attempts. The system becomes increasingly restrictive with each failed attempt, making it practically impossible to guess the PIN.
+
+| Failed Attempts | Consequence |
+|-----------------|-------------|
+| 1-3 | No delay |
+| 4-5 | 5 second delay |
+| 6-7 | 30 second delay |
+| 8-9 | 5 minute delay |
+| 10+ | 30 minute lockout |
+
+### Paranoia Mode (Session Deletion)
+
+For maximum security in high-risk environments, you can enable automatic session deletion after reaching the maximum failed attempts. When this option is enabled, all WhatsApp sessions will be permanently and securely deleted if someone fails to enter the correct PIN too many times. The deletion uses a secure 3-pass overwrite to ensure data cannot be recovered.
+
+**Warning**: Enabling this feature means you will need to scan QR codes again to reconnect your WhatsApp accounts if the limit is reached. Use this feature only if you prioritize security over convenience.
+
+### Forgot PIN
+
+If you forget your PIN, the only option is to reset the application, which deletes all stored sessions. This is by design—there is no "backdoor" or recovery mechanism, ensuring that your sessions remain protected even if someone gains access to your computer. After reset, you'll need to scan the QR codes again to reconnect your WhatsApp accounts.
 
 ## System Requirements
 

@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
+ * @version 1.1.0
  *
  * This module provides internationalization support for the renderer process.
  * Unlike the main process i18n module, this one runs in the browser context

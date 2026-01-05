@@ -30,7 +30,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Content Security Policy: Restrict script/style sources to same origin -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
   <title>Settings</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/settings.css">
@@ -105,6 +105,120 @@
         <div class="setting-row">
           <label for="check-minimized" data-i18n="settings.startMinimized">Start minimized</label>
           <input type="checkbox" id="check-minimized" class="setting-checkbox">
+        </div>
+      </section>
+
+      <!-- =======================================================================
+           Security Section
+           Controls PIN protection and auto-lock features to prevent
+           unauthorized access to WhatsApp sessions.
+           ======================================================================= -->
+      <section class="settings-section">
+        <h2 data-i18n="settings.security">Security</h2>
+
+        <!-- PIN Protection Subsection -->
+        <div class="setting-subsection">
+          <h3 data-i18n="settings.pinProtection">PIN protection</h3>
+
+          <!-- Enable PIN Lock -->
+          <div class="setting-row">
+            <div class="setting-label-group">
+              <label for="check-pin-enabled" data-i18n="settings.pinEnabled">Enable PIN lock</label>
+              <span class="setting-description" data-i18n="settings.pinEnabledDesc">Require PIN to access the app</span>
+            </div>
+            <input type="checkbox" id="check-pin-enabled" class="setting-checkbox">
+          </div>
+
+          <!-- PIN Action Buttons -->
+          <div class="setting-row pin-buttons" id="pin-buttons">
+            <button id="btn-setup-pin" class="btn btn-secondary btn-small" data-i18n="settings.setupPin">Set up PIN</button>
+            <button id="btn-change-pin" class="btn btn-secondary btn-small" data-i18n="settings.changePin" style="display: none;">Change PIN</button>
+            <button id="btn-remove-pin" class="btn btn-danger btn-small" data-i18n="settings.removePin" style="display: none;">Remove PIN</button>
+          </div>
+
+          <!-- Lock Now Button -->
+          <div class="setting-row" id="lock-now-row" style="display: none;">
+            <div class="setting-label-group">
+              <label data-i18n="settings.lockNow">Lock now</label>
+              <span class="setting-description" data-i18n="settings.lockNowDesc">Lock the app immediately</span>
+            </div>
+            <button id="btn-lock-now" class="btn btn-primary btn-small" data-i18n="settings.lockNowBtn">Lock</button>
+          </div>
+        </div>
+
+        <!-- Auto-lock Subsection -->
+        <div class="setting-subsection" id="autolock-section">
+          <h3 data-i18n="settings.autoLock">Auto-lock</h3>
+
+          <!-- Auto-lock after inactivity -->
+          <div class="setting-row">
+            <label for="check-autolock" data-i18n="settings.autoLockEnabled">Auto-lock after inactivity</label>
+            <input type="checkbox" id="check-autolock" class="setting-checkbox">
+          </div>
+
+          <!-- Auto-lock timeout -->
+          <div class="setting-row" id="autolock-timeout-row">
+            <label for="select-autolock-timeout" data-i18n="settings.autoLockTimeout">Lock after</label>
+            <div class="setting-inline">
+              <select id="select-autolock-timeout" class="setting-select setting-select-small">
+                <option value="1">1</option>
+                <option value="5">5</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+              </select>
+              <span data-i18n="settings.minutes">minutes</span>
+            </div>
+          </div>
+
+          <!-- Lock on system suspend -->
+          <div class="setting-row">
+            <label for="check-lock-suspend" data-i18n="settings.lockOnSuspend">Lock on system suspend</label>
+            <input type="checkbox" id="check-lock-suspend" class="setting-checkbox">
+          </div>
+
+          <!-- Lock on screen lock -->
+          <div class="setting-row">
+            <label for="check-lock-screenlock" data-i18n="settings.lockOnScreenLock">Lock on screen lock</label>
+            <input type="checkbox" id="check-lock-screenlock" class="setting-checkbox">
+          </div>
+        </div>
+
+        <!-- Advanced Security Subsection -->
+        <div class="setting-subsection" id="advanced-security-section">
+          <h3 data-i18n="settings.advancedSecurity">Advanced Security</h3>
+
+          <!-- Maximum attempts -->
+          <div class="setting-row">
+            <label for="select-max-attempts" data-i18n="settings.maxAttempts">Maximum PIN attempts</label>
+            <select id="select-max-attempts" class="setting-select setting-select-small">
+              <option value="3">3</option>
+              <option value="5">5</option>
+              <option value="10">10</option>
+            </select>
+          </div>
+
+          <!-- Lockout duration -->
+          <div class="setting-row">
+            <label for="select-lockout-duration" data-i18n="settings.lockoutDuration">Lockout duration</label>
+            <div class="setting-inline">
+              <select id="select-lockout-duration" class="setting-select setting-select-small">
+                <option value="1">1</option>
+                <option value="5">5</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+              </select>
+              <span data-i18n="settings.minutes">minutes</span>
+            </div>
+          </div>
+
+          <!-- Delete sessions after max attempts (Paranoia mode) -->
+          <div class="setting-row setting-row-danger">
+            <div class="setting-label-group">
+              <label for="check-delete-on-max" data-i18n="settings.deleteOnMaxAttempts">Delete sessions after max attempts</label>
+              <span class="setting-description setting-warning" data-i18n="settings.deleteOnMaxAttemptsWarning">Warning: This will delete all WhatsApp sessions if max attempts are reached</span>
+            </div>
+            <input type="checkbox" id="check-delete-on-max" class="setting-checkbox">
+          </div>
         </div>
       </section>
     </main>
