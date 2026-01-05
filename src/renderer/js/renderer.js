@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
+ * @version 1.1.0
  *
  * This is the main renderer process script for the application's
  * index.html page. It handles the dropdown menu UI, account switching,

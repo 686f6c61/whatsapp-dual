@@ -12,7 +12,8 @@
     "help": "Help",
     "about": "About WhatsApp Dual",
     "github": "GitHub Repository",
-    "shortcuts": "Keyboard shortcuts"
+    "shortcuts": "Keyboard shortcuts",
+    "lockNow": "Lock now"
   },
   "settings": {
     "title": "Settings",
@@ -24,7 +25,28 @@
     "minimizeToTray": "Minimize to tray",
     "defaultAccount": "Default account",
     "save": "Save",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "security": "Security",
+    "pinProtection": "PIN protection",
+    "pinEnabled": "Enable PIN lock",
+    "pinEnabledDesc": "Require PIN to access the app",
+    "setupPin": "Set up PIN",
+    "changePin": "Change PIN",
+    "removePin": "Remove PIN",
+    "autoLock": "Auto-lock",
+    "autoLockEnabled": "Auto-lock after inactivity",
+    "autoLockTimeout": "Lock after",
+    "minutes": "minutes",
+    "lockOnSuspend": "Lock on system suspend",
+    "lockOnScreenLock": "Lock on screen lock",
+    "advancedSecurity": "Advanced Security",
+    "maxAttempts": "Maximum PIN attempts",
+    "lockoutDuration": "Lockout duration",
+    "deleteOnMaxAttempts": "Delete sessions after max attempts",
+    "deleteOnMaxAttemptsWarning": "Warning: This will delete all WhatsApp sessions if max attempts are reached",
+    "lockNow": "Lock now",
+    "lockNowDesc": "Lock the app immediately",
+    "lockNowBtn": "Lock"
   },
   "about": {
     "title": "About WhatsApp Dual",
@@ -63,5 +85,33 @@
   "notifications": {
     "newMessage": "New message",
     "newMessages": "new messages"
+  },
+  "lock": {
+    "enterPin": "Enter your PIN",
+    "incorrectPin": "Incorrect PIN",
+    "attemptsRemaining": "attempts remaining",
+    "lockedOut": "Locked out. Try again in",
+    "forgotPin": "Forgot PIN?",
+    "resetTitle": "Reset App",
+    "resetWarning": "This will delete all WhatsApp sessions. You will need to scan QR codes again.",
+    "cancel": "Cancel",
+    "resetConfirm": "Reset Everything",
+    "unlocked": "Unlocked!"
+  },
+  "setup": {
+    "title": "Set Up PIN",
+    "enterNew": "Enter a new PIN (4-8 digits)",
+    "confirmPin": "Confirm your PIN",
+    "pinMismatch": "PINs do not match. Try again.",
+    "pinSet": "PIN set successfully!",
+    "reqLength": "4-8 digits",
+    "reqNumbers": "Numbers only",
+    "skip": "Skip for now"
+  },
+  "security": {
+    "alert": "Security Alert",
+    "sessionModified": "Session files may have been modified externally.",
+    "sessionModifiedDetail": "Your WhatsApp sessions may have been accessed or tampered with while the app was closed. Consider logging out and scanning the QR code again for security.",
+    "logoutAll": "Logout All Sessions"
   }
 }

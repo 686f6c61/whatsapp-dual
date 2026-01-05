@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
+ * @version 1.1.0
  *
  * This module handles automatic application updates using electron-updater.
  * It checks for new versions from GitHub Releases and provides a seamless

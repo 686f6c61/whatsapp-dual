@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
+ * @version 1.1.0
  *
  * This module manages the application's visual theme (light/dark mode).
  * It supports three modes: light, dark, and system (follows OS preference).

@@ -1,0 +1,518 @@
+/**
+ * WhatsApp Dual - Lock Screen Styles
+ *
+ * @author 686f6c61
+ * @license MIT
+ * @repository https://github.com/686f6c61/whatsapp-dual
+ *
+ * Styles for the PIN lock screen and setup screen.
+ * Supports dark and light themes via CSS custom properties.
+ */
+
+/* =============================================================================
+   CSS Variables - Theme Support
+   ============================================================================= */
+:root {
+  /* Light theme (default) */
+  --lock-bg: #f0f2f5;
+  --lock-card-bg: #ffffff;
+  --lock-text-primary: #111b21;
+  --lock-text-secondary: #667781;
+  --lock-accent: #00a884;
+  --lock-accent-hover: #008f72;
+  --lock-danger: #ea4335;
+  --lock-danger-hover: #d33426;
+  --lock-border: #e9edef;
+  --lock-shadow: rgba(0, 0, 0, 0.1);
+  --lock-dot-empty: #d1d7db;
+  --lock-dot-filled: #00a884;
+  --lock-numpad-bg: #f0f2f5;
+  --lock-numpad-hover: #e9edef;
+  --lock-numpad-active: #d1d7db;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lock-bg: #111b21;
+    --lock-card-bg: #1f2c34;
+    --lock-text-primary: #e9edef;
+    --lock-text-secondary: #8696a0;
+    --lock-accent: #00a884;
+    --lock-accent-hover: #06cf9c;
+    --lock-danger: #ea4335;
+    --lock-danger-hover: #ff6b5b;
+    --lock-border: #2a3942;
+    --lock-shadow: rgba(0, 0, 0, 0.3);
+    --lock-dot-empty: #3b4a54;
+    --lock-dot-filled: #00a884;
+    --lock-numpad-bg: #2a3942;
+    --lock-numpad-hover: #3b4a54;
+    --lock-numpad-active: #4a5c66;
+  }
+}
+
+/* =============================================================================
+   Base Styles
+   ============================================================================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background-color: var(--lock-bg);
+  color: var(--lock-text-primary);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  -webkit-app-region: drag;
+}
+
+/* =============================================================================
+   Lock Container
+   ============================================================================= */
+.lock-container {
+  background-color: var(--lock-card-bg);
+  border-radius: 16px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 4px 24px var(--lock-shadow);
+  text-align: center;
+  -webkit-app-region: no-drag;
+}
+
+/* =============================================================================
+   Lock Icon
+   ============================================================================= */
+.lock-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 24px;
+  color: var(--lock-accent);
+}
+
+.lock-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.lock-icon.setup {
+  color: var(--lock-accent);
+}
+
+.lock-icon.error {
+  color: var(--lock-danger);
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+/* =============================================================================
+   Typography
+   ============================================================================= */
+.lock-title {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--lock-text-primary);
+}
+
+.lock-subtitle {
+  font-size: 14px;
+  color: var(--lock-text-secondary);
+  margin-bottom: 24px;
+}
+
+/* =============================================================================
+   Step Indicator (Setup Screen)
+   ============================================================================= */
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  gap: 8px;
+}
+
+.step {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--lock-dot-empty);
+  color: var(--lock-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.step.active {
+  background-color: var(--lock-accent);
+  color: white;
+}
+
+.step.completed {
+  background-color: var(--lock-accent);
+  color: white;
+}
+
+.step-line {
+  width: 40px;
+  height: 2px;
+  background-color: var(--lock-dot-empty);
+  transition: background-color 0.3s ease;
+}
+
+.step-line.active {
+  background-color: var(--lock-accent);
+}
+
+/* =============================================================================
+   PIN Input
+   ============================================================================= */
+.pin-container {
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--lock-dot-empty);
+  transition: all 0.2s ease;
+}
+
+.pin-dot.filled {
+  background-color: var(--lock-dot-filled);
+  transform: scale(1.1);
+}
+
+.pin-dot.error {
+  background-color: var(--lock-danger);
+  animation: pulse 0.3s ease-in-out;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+}
+
+#pin-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* =============================================================================
+   Status Message
+   ============================================================================= */
+.status-message {
+  font-size: 13px;
+  min-height: 20px;
+  margin-bottom: 8px;
+  transition: all 0.3s ease;
+}
+
+.status-message.error {
+  color: var(--lock-danger);
+}
+
+.status-message.success {
+  color: var(--lock-accent);
+}
+
+/* =============================================================================
+   Attempts Info
+   ============================================================================= */
+.attempts-info {
+  font-size: 12px;
+  color: var(--lock-text-secondary);
+  min-height: 18px;
+  margin-bottom: 16px;
+}
+
+.attempts-info.warning {
+  color: #f59f00;
+}
+
+.attempts-info.danger {
+  color: var(--lock-danger);
+}
+
+/* =============================================================================
+   Lockout Timer
+   ============================================================================= */
+.lockout-timer {
+  background-color: var(--lock-danger);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.lockout-timer.hidden {
+  display: none;
+}
+
+#lockout-countdown {
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+/* =============================================================================
+   PIN Requirements (Setup Screen)
+   ============================================================================= */
+.pin-requirements {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--lock-text-secondary);
+}
+
+.requirement .check-icon {
+  width: 14px;
+  height: 14px;
+  opacity: 0.3;
+  transition: all 0.3s ease;
+}
+
+.requirement.valid {
+  color: var(--lock-accent);
+}
+
+.requirement.valid .check-icon {
+  opacity: 1;
+  color: var(--lock-accent);
+}
+
+/* =============================================================================
+   Numpad
+   ============================================================================= */
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 260px;
+  margin: 0 auto 20px;
+}
+
+.numpad-btn {
+  width: 72px;
+  height: 56px;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--lock-numpad-bg);
+  color: var(--lock-text-primary);
+  font-size: 24px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  -webkit-app-region: no-drag;
+}
+
+.numpad-btn:hover {
+  background-color: var(--lock-numpad-hover);
+}
+
+.numpad-btn:active {
+  background-color: var(--lock-numpad-active);
+  transform: scale(0.95);
+}
+
+.numpad-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.numpad-btn:disabled:hover {
+  background-color: var(--lock-numpad-bg);
+}
+
+.numpad-btn:disabled:active {
+  transform: none;
+}
+
+.numpad-btn svg {
+  width: 24px;
+  height: 24px;
+}
+
+.numpad-clear {
+  color: var(--lock-text-secondary);
+}
+
+.numpad-submit {
+  background-color: var(--lock-accent);
+  color: white;
+}
+
+.numpad-submit:hover:not(:disabled) {
+  background-color: var(--lock-accent-hover);
+}
+
+/* =============================================================================
+   Links and Actions
+   ============================================================================= */
+.forgot-pin,
+.setup-actions {
+  margin-top: 8px;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: var(--lock-accent);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.link-button:hover {
+  background-color: rgba(0, 168, 132, 0.1);
+}
+
+/* =============================================================================
+   Modal
+   ============================================================================= */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  -webkit-app-region: no-drag;
+}
+
+.modal.hidden {
+  display: none;
+}
+
+.modal-content {
+  background-color: var(--lock-card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 320px;
+  text-align: center;
+}
+
+.modal-content h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  color: var(--lock-text-primary);
+}
+
+.modal-content p {
+  font-size: 14px;
+  color: var(--lock-text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.modal-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary {
+  background-color: var(--lock-numpad-bg);
+  color: var(--lock-text-primary);
+}
+
+.btn-secondary:hover {
+  background-color: var(--lock-numpad-hover);
+}
+
+.btn-danger {
+  background-color: var(--lock-danger);
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: var(--lock-danger-hover);
+}
+
+/* =============================================================================
+   Animations
+   ============================================================================= */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.lock-container {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* =============================================================================
+   Responsive Adjustments
+   ============================================================================= */
+@media (max-height: 600px) {
+  .lock-container {
+    padding: 24px;
+  }
+
+  .lock-icon {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 16px;
+  }
+
+  .lock-title {
+    font-size: 20px;
+  }
+
+  .numpad-btn {
+    width: 64px;
+    height: 48px;
+    font-size: 20px;
+  }
+}
