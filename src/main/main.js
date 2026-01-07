@@ -26,7 +26,7 @@
  * maintains its own cookies, localStorage, and session data.
  */
 
-const { app, BrowserWindow, BrowserView, globalShortcut, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, BrowserView, globalShortcut, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const { WHATSAPP_URL, ACCOUNTS, WINDOW_CONFIG, SHORTCUTS } = require('../shared/constants');
@@ -190,6 +190,49 @@ function checkForUnreadMessages() {
 }
 
 /**
+ * Checks if a URL is a WhatsApp internal URL.
+ *
+ * @param {string} url - The URL to check
+ * @returns {boolean} True if the URL is a WhatsApp URL
+ */
+function isWhatsAppURL(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.endsWith('whatsapp.com') || urlObj.hostname.endsWith('whatsapp.net');
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Configures external link handling for a BrowserView's webContents.
+ *
+ * This ensures that:
+ * - Links to WhatsApp domains open within the app
+ * - All other links open in the user's default browser
+ *
+ * @param {Electron.WebContents} webContents - The webContents to configure
+ * @returns {void}
+ */
+function setupExternalLinkHandler(webContents) {
+  // Handle new window requests (target="_blank" links)
+  webContents.setWindowOpenHandler(({ url }) => {
+    if (!isWhatsAppURL(url)) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
+
+  // Handle navigation within the same window
+  webContents.on('will-navigate', (event, url) => {
+    if (!isWhatsAppURL(url)) {
+      event.preventDefault();
+      shell.openExternal(url);
+    }
+  });
+}
+
+/**
  * Creates isolated BrowserViews for Personal and Business WhatsApp accounts.
  *
  * Each BrowserView uses a separate session partition to ensure complete
@@ -214,6 +257,9 @@ function createWhatsAppViews() {
   views.personal.webContents.setUserAgent(USER_AGENT);
   views.personal.webContents.loadURL(WHATSAPP_URL);
 
+  // Configure external link handling
+  setupExternalLinkHandler(views.personal.webContents);
+
   // Listen for title changes to detect unread messages
   views.personal.webContents.on('page-title-updated', () => {
     checkForUnreadMessages();
@@ -229,6 +275,9 @@ function createWhatsAppViews() {
   });
   views.business.webContents.setUserAgent(USER_AGENT);
   views.business.webContents.loadURL(WHATSAPP_URL);
+
+  // Configure external link handling
+  setupExternalLinkHandler(views.business.webContents);
 
   // Listen for title changes to detect unread messages
   views.business.webContents.on('page-title-updated', () => {
