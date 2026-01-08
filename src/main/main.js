@@ -717,6 +717,34 @@ ipcMain.on('security:setupPIN', () => {
 // Application Lifecycle
 // =============================================================================
 
+// =============================================================================
+// Single Instance Lock
+// =============================================================================
+
+/**
+ * Ensures only one instance of the application runs at a time.
+ * If another instance is already running, focus the existing window
+ * instead of opening a new one.
+ */
+const gotTheLock = app.requestSingleInstanceLock();
+
+if (!gotTheLock) {
+  // Another instance is already running, quit this one
+  app.quit();
+} else {
+  // This is the primary instance
+  app.on('second-instance', () => {
+    // Someone tried to run a second instance, focus our window instead
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore();
+      }
+      mainWindow.show();
+      mainWindow.focus();
+    }
+  });
+}
+
 /**
  * Application initialization.
  *
