@@ -136,6 +136,11 @@ function createWindow() {
     updateViewBounds();
   });
 
+  // Update bounds when window is shown (fixes initial sizing on Linux)
+  mainWindow.on('show', () => {
+    updateViewBounds();
+  });
+
   // Handle close button - minimize to tray if enabled
   mainWindow.on('close', (event) => {
     const minimizeToTray = store.get('minimizeToTray', true);
