@@ -736,10 +736,12 @@ if (!gotTheLock) {
   app.on('second-instance', () => {
     // Someone tried to run a second instance, focus our window instead
     if (mainWindow) {
+      if (!mainWindow.isVisible()) {
+        mainWindow.show();
+      }
       if (mainWindow.isMinimized()) {
         mainWindow.restore();
       }
-      mainWindow.show();
       mainWindow.focus();
     }
   });
