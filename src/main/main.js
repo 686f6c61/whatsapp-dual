@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.1.5
+ * @version 1.2.0
  *
  * This is the main Electron process that orchestrates the entire application.
  * It creates and manages the main window with two isolated BrowserViews,
@@ -14,6 +14,7 @@
  * - Window creation and lifecycle management
  * - BrowserView management for dual WhatsApp sessions
  * - Account switching between Personal and Business
+ * - File download handling for both sessions
  * - System tray integration
  * - Global keyboard shortcuts
  * - IPC communication with renderer processes
@@ -238,6 +239,35 @@ function setupExternalLinkHandler(webContents) {
 }
 
 /**
+ * Configures file download handling for a BrowserView's session.
+ *
+ * Attaches a 'will-download' listener to the session so that file downloads
+ * from WhatsApp Web (images, documents, audio, video) are handled properly.
+ * By not calling item.setSavePath(), Electron shows a native "Save As" dialog
+ * that lets the user choose where to save the file.
+ *
+ * @param {Electron.WebContents} webContents - The webContents whose session to configure
+ * @returns {void}
+ */
+function setupDownloadHandler(webContents) {
+  webContents.session.on('will-download', (event, item) => {
+    item.on('updated', (event, state) => {
+      if (state === 'interrupted') {
+        console.log(`Download interrupted: ${item.getFilename()}`);
+      }
+    });
+
+    item.once('done', (event, state) => {
+      if (state === 'completed') {
+        console.log(`Download completed: ${item.getFilename()}`);
+      } else {
+        console.log(`Download failed (${state}): ${item.getFilename()}`);
+      }
+    });
+  });
+}
+
+/**
  * Creates isolated BrowserViews for Personal and Business WhatsApp accounts.
  *
  * Each BrowserView uses a separate session partition to ensure complete
@@ -265,6 +295,9 @@ function createWhatsAppViews() {
   // Configure external link handling
   setupExternalLinkHandler(views.personal.webContents);
 
+  // Configure file download handling
+  setupDownloadHandler(views.personal.webContents);
+
   // Listen for title changes to detect unread messages
   views.personal.webContents.on('page-title-updated', () => {
     checkForUnreadMessages();
@@ -283,6 +316,9 @@ function createWhatsAppViews() {
 
   // Configure external link handling
   setupExternalLinkHandler(views.business.webContents);
+
+  // Configure file download handling
+  setupDownloadHandler(views.business.webContents);
 
   // Listen for title changes to detect unread messages
   views.business.webContents.on('page-title-updated', () => {
