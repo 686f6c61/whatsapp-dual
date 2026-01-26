@@ -17,6 +17,8 @@ let currentPIN = '';
 let isLocked = false;
 let lockoutEndTime = null;
 let lockoutInterval = null;
+let isSubmitting = false; // Q14 — debounce flag
+let translations = {}; // Q8 — i18n translations
 
 // =============================================================================
 // DOM Elements
@@ -35,6 +37,29 @@ const confirmResetBtn = document.getElementById('btn-confirm-reset');
 const lockIcon = document.querySelector('.lock-icon');
 
 // =============================================================================
+// Translation Helper (Q8)
+// =============================================================================
+
+/**
+ * Retrieves a translated string by dot-notation key.
+ *
+ * @param {string} key - Dot-notation key
+ * @param {string} [fallback] - Fallback if key not found
+ * @returns {string}
+ */
+function t(key, fallback) {
+  const parts = key.split('.');
+  let current = translations;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') {
+      return fallback !== undefined ? fallback : key;
+    }
+    current = current[part];
+  }
+  return typeof current === 'string' ? current : (fallback !== undefined ? fallback : key);
+}
+
+// =============================================================================
 // PIN Input Handling
 // =============================================================================
 
@@ -44,19 +69,17 @@ const lockIcon = document.querySelector('.lock-icon');
  * @param {string} digit - The digit to add
  */
 function addDigit(digit) {
-  if (isLocked || currentPIN.length >= 8) {
+  if (isLocked || isSubmitting || currentPIN.length >= 8) {
     return;
   }
 
   currentPIN += digit;
   updatePINDisplay();
 
-  // Auto-submit when 4+ digits entered and user presses a number
-  // We'll wait for explicit submit or 6 digits
+  // Auto-submit when 6+ digits entered
   if (currentPIN.length >= 6) {
-    // Auto-submit after a short delay
     setTimeout(() => {
-      if (currentPIN.length >= 4) {
+      if (currentPIN.length >= 4 && !isSubmitting) {
         submitPIN();
       }
     }, 300);
@@ -126,16 +149,18 @@ function showPINError() {
  * Submit the PIN for verification.
  */
 async function submitPIN() {
-  if (isLocked || currentPIN.length < 4) {
+  if (isLocked || isSubmitting || currentPIN.length < 4) {
     return;
   }
+
+  isSubmitting = true;
 
   try {
     // Use unlock instead of verifyPIN to trigger the callback
     const result = await window.electronAPI.security.unlock(currentPIN);
 
     if (result.success) {
-      showStatus('Unlocked!', 'success');
+      showStatus(t('lock.unlocked', 'Unlocked!'), 'success');
       // The main process onUnlockCallback will hide lock screen and show app
     } else if (result.locked) {
       handleLockout(result.remainingTime);
@@ -153,8 +178,10 @@ async function submitPIN() {
     }
   } catch (error) {
     console.error('Error verifying PIN:', error);
-    showStatus('Verification error', 'error');
+    showStatus(t('lock.verificationError', 'Verification error'), 'error');
     showPINError();
+  } finally {
+    isSubmitting = false;
   }
 }
 
@@ -261,7 +288,7 @@ function updateAttemptsInfo(remaining) {
     return;
   }
 
-  attemptsInfo.textContent = `${remaining} attempts remaining`;
+  attemptsInfo.textContent = `${remaining} ${t('lock.attemptsRemaining', 'attempts remaining')}`;
   attemptsInfo.className = 'attempts-info';
 
   if (remaining <= 3) {
@@ -369,11 +396,23 @@ async function init() {
   // Focus for keyboard input
   document.body.focus();
 
-  // Check initial lockout status
+  // Q8 — Load translations
   try {
-    // The security module will handle lockout state
+    if (window.electronAPI && window.electronAPI.i18n) {
+      translations = await window.electronAPI.i18n.getTranslations() || {};
+    }
   } catch (error) {
-    console.error('Error initializing lock screen:', error);
+    console.error('Error loading translations:', error);
+  }
+
+  // B4 — Check initial lockout status
+  try {
+    const lockoutStatus = await window.electronAPI.security.checkLockout();
+    if (lockoutStatus && lockoutStatus.locked) {
+      handleLockout(lockoutStatus.remainingTime);
+    }
+  } catch (error) {
+    console.error('Error checking lockout status:', error);
   }
 }
 

@@ -135,11 +135,13 @@ function switchAccount(accountId) {
 // Event Listeners
 // =============================================================================
 
-// Menu toggle click handler
-menuToggle.addEventListener('click', (e) => {
-  e.stopPropagation();
-  toggleMenu();
-});
+// Menu toggle click handler (Q9 — null check)
+if (menuToggle) {
+  menuToggle.addEventListener('click', (e) => {
+    e.stopPropagation();
+    toggleMenu();
+  });
+}
 
 // Close menu when clicking outside
 document.addEventListener('click', closeMenuOnClickOutside);
@@ -152,22 +154,28 @@ accountButtons.forEach(button => {
   });
 });
 
-// Settings button handler
-btnSettings.addEventListener('click', () => {
-  dropdownMenu.classList.add('hidden');
-  ipcRenderer.send('open-settings');
-});
+// Settings button handler (Q9 — null check)
+if (btnSettings) {
+  btnSettings.addEventListener('click', () => {
+    dropdownMenu.classList.add('hidden');
+    ipcRenderer.send('open-settings');
+  });
+}
 
-// About button handler
-btnAbout.addEventListener('click', () => {
-  dropdownMenu.classList.add('hidden');
-  ipcRenderer.send('open-about');
-});
+// About button handler (Q9 — null check)
+if (btnAbout) {
+  btnAbout.addEventListener('click', () => {
+    dropdownMenu.classList.add('hidden');
+    ipcRenderer.send('open-about');
+  });
+}
 
-// Quit button handler
-btnQuit.addEventListener('click', () => {
-  ipcRenderer.send('quit-app');
-});
+// Quit button handler (Q9 — null check)
+if (btnQuit) {
+  btnQuit.addEventListener('click', () => {
+    ipcRenderer.send('quit-app');
+  });
+}
 
 // =============================================================================
 // IPC Event Handlers

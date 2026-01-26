@@ -281,15 +281,6 @@ function isUpdateAvailable() {
   return updateAvailable;
 }
 
-/**
- * Returns information about the available update.
- *
- * @returns {Object|null} Update info object or null if no update
- */
-function getUpdateInfo() {
-  return updateInfo;
-}
-
 // =============================================================================
 // Module Exports
 // =============================================================================
@@ -300,6 +291,5 @@ module.exports = {
   downloadUpdate,
   showUpdateDialog,
   setUpdateStatusCallback,
-  isUpdateAvailable,
-  getUpdateInfo
+  isUpdateAvailable
 };

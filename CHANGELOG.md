@@ -5,6 +5,43 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-01-26
+
+### Security
+
+- **Settings contextIsolation**: Settings window now uses `contextIsolation: true` with a secure preload script instead of `nodeIntegration: true`
+- **Lock screen bypass prevention**: Settings window cannot be opened while the lock screen is active
+- **PIN removal verification**: Removing PIN now always requires entering the current PIN first
+- **IPC sender validation**: Security-sensitive IPC handlers validate that requests come from known application windows
+- **BrowserView sandboxing**: WhatsApp views now run with `sandbox: true` for additional process isolation
+- **URL scheme allowlist**: External link handler only allows `https:` and `http:` schemes, blocking `file://`, `javascript:`, etc.
+- **CSP hardening**: Removed `'unsafe-inline'` from `style-src` in all HTML files; inline styles replaced with CSS classes
+
+### Fixed
+
+- **Tray account switching**: Account switching from the system tray now works correctly (was using incorrect IPC event name)
+- **Quit from tray/menu**: Quit now properly sets the quitting flag, preventing minimize-to-tray from blocking the quit operation
+- **Menu Reload**: Reload now reloads the active WhatsApp BrowserView instead of the main window frame
+- **Lock screen initialization**: Lock screen now checks for lockout status on load, showing the lockout timer if applicable
+- **PIN setup race condition**: Settings window now uses a completion callback instead of `setTimeout` to detect PIN setup completion
+
+### Changed
+
+- **No global shortcuts**: Removed system-wide `globalShortcut` registrations that could conflict with other applications; menu accelerators provide the same functionality
+- **BrowserView factory**: Deduplicated BrowserView creation code into a shared `createAccountView()` function
+- **Dynamic User-Agent**: Chrome version in User-Agent string now matches the actual Electron Chrome version
+- **Deprecated API cleanup**: Replaced deprecated `getBrowserView()`/`setBrowserView()` with `getBrowserViews()`/`addBrowserView()`
+- **Object.hasOwn**: Replaced `hasOwnProperty()` calls with the modern `Object.hasOwn()` static method
+
+### Improved
+
+- **Lock screen i18n**: Lock screen and PIN setup screen now support translations via the preload i18n API
+- **DOM null safety**: Added null checks for DOM elements in the main renderer to prevent runtime errors
+- **Error handling**: Added `.catch()` to all `shell.openExternal()` calls; improved error logging in file permission operations
+- **PIN auto-submit debounce**: Added debounce flag to prevent double-submission during PIN auto-submit
+- **Dead code removal**: Removed unused functions (`setMainWindow`, `hasUnreadMessages`, `getUpdateInfo`, `removePINNoVerify`)
+- **Deduplicated show listener**: Consolidated two `mainWindow.on('show')` listeners into one
+
 ## [1.2.0] - 2026-01-26
 
 ### Added
@@ -166,6 +203,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.2.1 | 2026-01-26 | Security hardening, bug fixes, code quality |
+| 1.2.0 | 2026-01-26 | File downloads |
 | 1.1.5 | 2026-01-06 | Tray notification indicator for unread messages |
 | 1.1.0 | 2026-01-05 | PIN protection, auto-lock, security features |
 | 1.0.3 | 2025-01-05 | Auto-updates, Electron 33, documentation |

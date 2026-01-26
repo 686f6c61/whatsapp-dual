@@ -30,7 +30,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <!-- Content Security Policy: Restrict script/style sources to same origin -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:">
   <title>Settings</title>
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/settings.css">
@@ -132,12 +132,12 @@
           <!-- PIN Action Buttons -->
           <div class="setting-row pin-buttons" id="pin-buttons">
             <button id="btn-setup-pin" class="btn btn-secondary btn-small" data-i18n="settings.setupPin">Set up PIN</button>
-            <button id="btn-change-pin" class="btn btn-secondary btn-small" data-i18n="settings.changePin" style="display: none;">Change PIN</button>
-            <button id="btn-remove-pin" class="btn btn-danger btn-small" data-i18n="settings.removePin" style="display: none;">Remove PIN</button>
+            <button id="btn-change-pin" class="btn btn-secondary btn-small js-hidden" data-i18n="settings.changePin">Change PIN</button>
+            <button id="btn-remove-pin" class="btn btn-danger btn-small js-hidden" data-i18n="settings.removePin">Remove PIN</button>
           </div>
 
           <!-- Lock Now Button -->
-          <div class="setting-row" id="lock-now-row" style="display: none;">
+          <div class="setting-row js-hidden" id="lock-now-row">
             <div class="setting-label-group">
               <label data-i18n="settings.lockNow">Lock now</label>
               <span class="setting-description" data-i18n="settings.lockNowDesc">Lock the app immediately</span>

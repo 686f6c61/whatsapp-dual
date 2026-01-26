@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     unlock: (pin) => ipcRenderer.invoke('security:unlock', pin),
     lock: () => ipcRenderer.invoke('security:lock'),
 
+    // Lockout check (B4 fix)
+    checkLockout: () => ipcRenderer.invoke('security:checkLockout'),
+
     // Reset app
     resetApp: () => ipcRenderer.invoke('security:resetApp'),
 
@@ -41,5 +44,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // Get settings
     getSettings: () => ipcRenderer.invoke('security:getSettings')
+  },
+
+  // i18n operations (Q8 — lock screen translations)
+  i18n: {
+    getTranslations: () => ipcRenderer.invoke('i18n:getTranslations')
   }
 });

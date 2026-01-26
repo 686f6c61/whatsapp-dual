@@ -195,6 +195,35 @@ function init(savedLanguage) {
   loadLanguage(lang);
 }
 
+/**
+ * Returns all loaded translations for the current language.
+ *
+ * Used to pass the complete translations object to renderer processes
+ * via IPC when contextIsolation is enabled.
+ *
+ * @returns {Object} The complete translations object
+ */
+function getAllTranslations() {
+  return translations;
+}
+
+/**
+ * Returns list of available language codes by scanning the locales directory.
+ *
+ * @returns {string[]} Array of language codes (e.g., ['en', 'es'])
+ */
+function getAvailableLanguages() {
+  const localesPath = getLocalesPath();
+  try {
+    const files = fs.readdirSync(localesPath);
+    return files
+      .filter(file => file.endsWith('.json'))
+      .map(file => file.replace('.json', ''));
+  } catch (error) {
+    return ['en', 'es'];
+  }
+}
+
 // =============================================================================
 // Module Exports
 // =============================================================================
@@ -204,5 +233,7 @@ module.exports = {
   init,
   getLanguage,
   setLanguage,
-  loadLanguage
+  loadLanguage,
+  getAllTranslations,
+  getAvailableLanguages
 };

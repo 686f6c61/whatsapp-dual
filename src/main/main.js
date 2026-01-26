@@ -4,7 +4,7 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.2.0
+ * @version 1.2.1
  *
  * This is the main Electron process that orchestrates the entire application.
  * It creates and manages the main window with two isolated BrowserViews,
@@ -27,10 +27,10 @@
  * maintains its own cookies, localStorage, and session data.
  */
 
-const { app, BrowserWindow, BrowserView, globalShortcut, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, BrowserView, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
-const { WHATSAPP_URL, ACCOUNTS, WINDOW_CONFIG, SHORTCUTS } = require('../shared/constants');
+const { WHATSAPP_URL, ACCOUNTS, WINDOW_CONFIG } = require('../shared/constants');
 const { createTray, destroyTray, updateContextMenu, setNotificationState } = require('./tray');
 const { createMenu } = require('./menu');
 const i18n = require('../shared/i18n');
@@ -74,7 +74,7 @@ let lockWindow = null;
  * WhatsApp Web may block requests from Electron's default user agent.
  * @constant {string}
  */
-const USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+const USER_AGENT = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
 
 // =============================================================================
 // Window Management
@@ -111,12 +111,23 @@ function createWindow() {
     }
   });
 
+  // Quit helper — sets flag so minimize-to-tray doesn't block quit (B2 fix)
+  const quitApp = () => { isQuitting = true; app.quit(); };
+
+  // Reload helper — reloads the active BrowserView, not the main window (B3 fix)
+  const reloadActiveView = () => {
+    const view = views[currentAccount];
+    if (view && view.webContents) {
+      view.webContents.reload();
+    }
+  };
+
   // Create custom menu
-  createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow);
+  createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
 
   // Set up updater callback to rebuild menu when update is found
   updater.setUpdateStatusCallback((hasUpdate, info) => {
-    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow);
+    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
     updateContextMenu();
   });
 
@@ -129,17 +140,18 @@ function createWindow() {
   // Set initial view based on default account setting
   switchAccount(defaultAccount);
 
-  // Create system tray
-  createTray(mainWindow);
+  // Create system tray (B1/B2 fix — pass switchAccount and quitApp callbacks)
+  createTray(mainWindow, switchAccount, quitApp);
 
   // Handle window resize
   mainWindow.on('resize', () => {
     updateViewBounds();
   });
 
-  // Update bounds when window is shown (fixes initial sizing on Linux)
+  // Update bounds and tray menu when window is shown (Q4 — deduplicated)
   mainWindow.on('show', () => {
     updateViewBounds();
+    updateContextMenu();
   });
 
   // Handle close button - minimize to tray if enabled
@@ -155,10 +167,6 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
-  });
-
-  mainWindow.on('show', () => {
-    updateContextMenu();
   });
 
   mainWindow.on('hide', () => {
@@ -211,11 +219,28 @@ function isWhatsAppURL(url) {
 }
 
 /**
+ * Checks if a URL scheme is allowed for opening externally.
+ * Only http: and https: are permitted (S8 — blocks file://, javascript:, etc.).
+ *
+ * @param {string} url - The URL to check
+ * @returns {boolean} True if scheme is allowed
+ */
+function isAllowedScheme(url) {
+  try {
+    const urlObj = new URL(url);
+    return urlObj.protocol === 'https:' || urlObj.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Configures external link handling for a BrowserView's webContents.
  *
  * This ensures that:
  * - Links to WhatsApp domains open within the app
- * - All other links open in the user's default browser
+ * - All other links with allowed schemes open in the user's default browser
+ * - Links with disallowed schemes (file://, javascript://) are blocked
  *
  * @param {Electron.WebContents} webContents - The webContents to configure
  * @returns {void}
@@ -223,8 +248,8 @@ function isWhatsAppURL(url) {
 function setupExternalLinkHandler(webContents) {
   // Handle new window requests (target="_blank" links)
   webContents.setWindowOpenHandler(({ url }) => {
-    if (!isWhatsAppURL(url)) {
-      shell.openExternal(url);
+    if (!isWhatsAppURL(url) && isAllowedScheme(url)) {
+      shell.openExternal(url).catch(err => console.error('Error opening external URL:', err));
     }
     return { action: 'deny' };
   });
@@ -233,7 +258,9 @@ function setupExternalLinkHandler(webContents) {
   webContents.on('will-navigate', (event, url) => {
     if (!isWhatsAppURL(url)) {
       event.preventDefault();
-      shell.openExternal(url);
+      if (isAllowedScheme(url)) {
+        shell.openExternal(url).catch(err => console.error('Error opening external URL:', err));
+      }
     }
   });
 }
@@ -268,62 +295,45 @@ function setupDownloadHandler(webContents) {
 }
 
 /**
+ * Creates a single isolated BrowserView for a WhatsApp account.
+ *
+ * @param {Object} accountConfig - Account configuration from ACCOUNTS
+ * @param {string} accountConfig.partition - Session partition name
+ * @returns {BrowserView} The configured BrowserView
+ */
+function createAccountView(accountConfig) {
+  const view = new BrowserView({
+    webPreferences: {
+      partition: accountConfig.partition,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
+    }
+  });
+
+  view.webContents.setUserAgent(USER_AGENT);
+  view.webContents.loadURL(WHATSAPP_URL);
+  setupExternalLinkHandler(view.webContents);
+  setupDownloadHandler(view.webContents);
+
+  view.webContents.on('page-title-updated', () => {
+    checkForUnreadMessages();
+  });
+
+  return view;
+}
+
+/**
  * Creates isolated BrowserViews for Personal and Business WhatsApp accounts.
  *
  * Each BrowserView uses a separate session partition to ensure complete
- * isolation between accounts. This means:
- * - Separate cookies for each account
- * - Independent localStorage/sessionStorage
- * - No cross-contamination of login sessions
- *
- * The partition format 'persist:name' ensures data persists across app restarts.
+ * isolation between accounts (cookies, localStorage, login sessions).
  *
  * @returns {void}
  */
 function createWhatsAppViews() {
-  // Create Personal WhatsApp view with isolated session
-  views.personal = new BrowserView({
-    webPreferences: {
-      partition: ACCOUNTS.PERSONAL.partition,
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-  views.personal.webContents.setUserAgent(USER_AGENT);
-  views.personal.webContents.loadURL(WHATSAPP_URL);
-
-  // Configure external link handling
-  setupExternalLinkHandler(views.personal.webContents);
-
-  // Configure file download handling
-  setupDownloadHandler(views.personal.webContents);
-
-  // Listen for title changes to detect unread messages
-  views.personal.webContents.on('page-title-updated', () => {
-    checkForUnreadMessages();
-  });
-
-  // Create Business view
-  views.business = new BrowserView({
-    webPreferences: {
-      partition: ACCOUNTS.BUSINESS.partition,
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-  views.business.webContents.setUserAgent(USER_AGENT);
-  views.business.webContents.loadURL(WHATSAPP_URL);
-
-  // Configure external link handling
-  setupExternalLinkHandler(views.business.webContents);
-
-  // Configure file download handling
-  setupDownloadHandler(views.business.webContents);
-
-  // Listen for title changes to detect unread messages
-  views.business.webContents.on('page-title-updated', () => {
-    checkForUnreadMessages();
-  });
+  views.personal = createAccountView(ACCOUNTS.PERSONAL);
+  views.business = createAccountView(ACCOUNTS.BUSINESS);
 }
 
 /**
@@ -372,11 +382,8 @@ function switchAccount(accountId) {
 
   currentAccount = accountId;
 
-  // Remove current view
-  const currentView = mainWindow.getBrowserView();
-  if (currentView) {
-    mainWindow.removeBrowserView(currentView);
-  }
+  // Remove all current views (Q5 — uses non-deprecated getBrowserViews())
+  mainWindow.getBrowserViews().forEach(v => mainWindow.removeBrowserView(v));
 
   // Add new view
   mainWindow.addBrowserView(views[accountId]);
@@ -406,6 +413,9 @@ function switchAccount(accountId) {
  * @returns {void}
  */
 function createSettingsWindow() {
+  // S3 — Block settings while lock screen is showing
+  if (isShowingLockScreen) return;
+
   if (settingsWindow) {
     settingsWindow.focus();
     return;
@@ -424,8 +434,10 @@ function createSettingsWindow() {
     minimizable: false,
     maximizable: false,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      preload: path.join(__dirname, 'preload-settings.js')
     }
   });
 
@@ -485,12 +497,9 @@ function showLockScreen() {
 
   isShowingLockScreen = true;
 
-  // Hide main window views
+  // Hide main window views (Q5 — uses non-deprecated getBrowserViews())
   if (mainWindow) {
-    const currentView = mainWindow.getBrowserView();
-    if (currentView) {
-      mainWindow.removeBrowserView(currentView);
-    }
+    mainWindow.getBrowserViews().forEach(v => mainWindow.removeBrowserView(v));
   }
 
   lockWindow = new BrowserWindow({
@@ -536,12 +545,13 @@ function hideLockScreen() {
     lockWindow = null;
   }
 
-  // Restore main window view
+  // Restore main window view (Q5 — uses non-deprecated addBrowserView())
   if (mainWindow) {
     // Re-add the view for current account
     const view = views[currentAccount];
     if (view) {
-      mainWindow.setBrowserView(view);
+      mainWindow.getBrowserViews().forEach(v => mainWindow.removeBrowserView(v));
+      mainWindow.addBrowserView(view);
       updateViewBounds();
     }
     mainWindow.show();
@@ -587,6 +597,9 @@ function showPINSetupScreen() {
   });
 }
 
+/** @type {boolean} Tracks whether security IPC handlers are registered */
+let securityInitialized = false;
+
 /**
  * Initialize security features.
  *
@@ -595,8 +608,16 @@ function showPINSetupScreen() {
  * @returns {void}
  */
 function initializeSecurity() {
-  // Register IPC handlers for security operations
-  security.registerIPCHandlers();
+  // Guard against double-registering IPC handlers (Q12)
+  if (!securityInitialized) {
+    securityInitialized = true;
+    // Register IPC handlers with window references for sender validation (S5)
+    security.registerIPCHandlers(() => ({
+      settings: settingsWindow,
+      lock: lockWindow,
+      main: mainWindow
+    }));
+  }
 
   // Secure session files with restrictive permissions
   security.secureSessionFiles();
@@ -625,35 +646,8 @@ function initializeSecurity() {
 // Keyboard Shortcuts
 // =============================================================================
 
-/**
- * Registers global keyboard shortcuts for the application.
- *
- * Shortcuts are active even when the app is not focused:
- * - Ctrl+1: Switch to Personal account
- * - Ctrl+2: Switch to Business account
- * - Ctrl+,: Open Settings
- * - Ctrl+Q: Quit application
- *
- * @returns {void}
- */
-function registerShortcuts() {
-  globalShortcut.register(SHORTCUTS.PERSONAL, () => {
-    switchAccount(ACCOUNTS.PERSONAL.id);
-  });
-
-  globalShortcut.register(SHORTCUTS.BUSINESS, () => {
-    switchAccount(ACCOUNTS.BUSINESS.id);
-  });
-
-  globalShortcut.register(SHORTCUTS.SETTINGS, () => {
-    createSettingsWindow();
-  });
-
-  globalShortcut.register(SHORTCUTS.QUIT, () => {
-    isQuitting = true;
-    app.quit();
-  });
-}
+// Q1 — Global shortcuts removed; menu accelerators provide the same
+// functionality without conflicting with other applications.
 
 // =============================================================================
 // IPC Communication Handlers
@@ -676,7 +670,7 @@ ipcMain.on('get-current-account', (event) => {
   event.reply('current-account', currentAccount);
 });
 
-/** Open settings window from renderer request */
+/** Open settings window from renderer request (S3 — guard added in createSettingsWindow) */
 ipcMain.on('open-settings', () => {
   createSettingsWindow();
 });
@@ -709,7 +703,12 @@ ipcMain.on('settings-changed', (event, settings) => {
   // Handle language change - rebuild menu and tray with new translations
   if (settings.language) {
     i18n.setLanguage(settings.language);
-    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow);
+    const quitApp = () => { isQuitting = true; app.quit(); };
+    const reloadActiveView = () => {
+      const view = views[currentAccount];
+      if (view && view.webContents) view.webContents.reload();
+    };
+    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
     updateContextMenu();
   }
 
@@ -722,6 +721,84 @@ ipcMain.on('settings-changed', (event, settings) => {
   }
 });
 
+// =============================================================================
+// Settings Window IPC Handlers (S1 — contextIsolation support)
+// =============================================================================
+
+/** Return all settings to the settings window */
+ipcMain.handle('settings:getAll', () => {
+  return {
+    language: store.get('language', 'en'),
+    theme: store.get('theme', 'system'),
+    startWithSystem: store.get('startWithSystem', false),
+    startMinimized: store.get('startMinimized', false),
+    minimizeToTray: store.get('minimizeToTray', true),
+    defaultAccount: store.get('defaultAccount', 'personal')
+  };
+});
+
+/** Save settings from the settings window */
+ipcMain.handle('settings:save', (event, settings) => {
+  // Persist each setting
+  if (settings.language !== undefined) store.set('language', settings.language);
+  if (settings.startWithSystem !== undefined) store.set('startWithSystem', settings.startWithSystem);
+  if (settings.startMinimized !== undefined) store.set('startMinimized', settings.startMinimized);
+  if (settings.minimizeToTray !== undefined) store.set('minimizeToTray', settings.minimizeToTray);
+  if (settings.defaultAccount !== undefined) store.set('defaultAccount', settings.defaultAccount);
+
+  // Apply language change
+  if (settings.language) {
+    i18n.setLanguage(settings.language);
+    const quitApp = () => { isQuitting = true; app.quit(); };
+    const reloadActiveView = () => {
+      const view = views[currentAccount];
+      if (view && view.webContents) view.webContents.reload();
+    };
+    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
+    updateContextMenu();
+  }
+
+  // Apply auto-start settings
+  if (settings.startWithSystem !== undefined) {
+    app.setLoginItemSettings({
+      openAtLogin: settings.startWithSystem,
+      openAsHidden: settings.startMinimized || false
+    });
+  }
+
+  return true;
+});
+
+// =============================================================================
+// i18n IPC Handlers (S1 — contextIsolation support)
+// =============================================================================
+
+/** Return translations for the current language */
+ipcMain.handle('i18n:getTranslations', () => {
+  return i18n.getAllTranslations();
+});
+
+/** Return current language code */
+ipcMain.handle('i18n:getLanguage', () => {
+  return i18n.getLanguage();
+});
+
+/** Return list of available language codes */
+ipcMain.handle('i18n:getAvailableLanguages', () => {
+  return i18n.getAvailableLanguages();
+});
+
+/** Return translations for a specific language (for preview) */
+ipcMain.handle('i18n:getTranslationsForLanguage', (event, lang) => {
+  // Load the requested language, get its translations, then restore current
+  const currentLang = i18n.getLanguage();
+  i18n.loadLanguage(lang);
+  const translations = i18n.getAllTranslations();
+  // Restore original language
+  i18n.loadLanguage(currentLang);
+  return translations;
+});
+
 /** Handle quit request from renderer or tray */
 ipcMain.on('quit-app', () => {
   isQuitting = true;
@@ -732,9 +809,13 @@ ipcMain.on('quit-app', () => {
 // Security IPC Handlers
 // =============================================================================
 
-/** Handle PIN setup completion - close setup window and show main app */
+/** Handle PIN setup completion - close setup window and notify settings (B5 fix) */
 ipcMain.on('security:pinSetupComplete', () => {
   hideLockScreen();
+  // Notify settings window that PIN setup is done
+  if (settingsWindow && !settingsWindow.isDestroyed()) {
+    settingsWindow.webContents.send('security:pinSetupDone');
+  }
 });
 
 /** Handle skip PIN setup - close setup window and show main app */
@@ -796,7 +877,6 @@ if (!gotTheLock) {
  */
 app.whenReady().then(() => {
   createWindow();
-  registerShortcuts();
   initializeSecurity();
 
   // Show lock screen on startup if PIN is enabled
@@ -839,6 +919,7 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    initializeSecurity();
   } else if (mainWindow) {
     mainWindow.show();
   }
@@ -851,6 +932,5 @@ app.on('activate', () => {
  * to ensure clean shutdown.
  */
 app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
   destroyTray();
 });

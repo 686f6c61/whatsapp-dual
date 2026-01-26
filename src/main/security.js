@@ -454,7 +454,10 @@ function setPermissionsRecursive(dirPath) {
       }
     }
   } catch (error) {
-    // Ignore permission errors on some files
+    // Ignore permission errors (EPERM/EACCES) — log others
+    if (error.code !== 'EPERM' && error.code !== 'EACCES') {
+      console.error(`Error setting permissions on ${dirPath}:`, error);
+    }
   }
 }
 
@@ -731,7 +734,7 @@ function updateSecuritySettings(settings) {
   ];
 
   for (const key of allowedKeys) {
-    if (settings.hasOwnProperty(key)) {
+    if (Object.hasOwn(settings, key)) {
       store.set(`security.${key}`, settings[key]);
     }
   }
@@ -745,55 +748,76 @@ function updateSecuritySettings(settings) {
 // =============================================================================
 
 /**
- * Remove PIN without verification (for use when already authenticated).
- *
- * @returns {boolean} True if PIN was removed successfully
- */
-function removePINNoVerify() {
-  try {
-    store.delete('security.pinData');
-    store.set('security.pinEnabled', false);
-    resetFailedAttempts();
-    return true;
-  } catch (error) {
-    console.error('Error removing PIN:', error);
-    return false;
-  }
-}
-
-/**
  * Register IPC handlers for security operations.
+ *
+ * @param {Function} [getWindows] - Callback that returns { settings, lock, main } window refs
  */
-function registerIPCHandlers() {
-  // PIN operations
+function registerIPCHandlers(getWindows) {
+  /**
+   * Validates that the IPC event sender is one of our known windows.
+   * Prevents rogue webContents from invoking security-sensitive handlers.
+   *
+   * @param {Electron.IpcMainInvokeEvent} event - IPC event
+   * @returns {boolean} True if sender is authorized
+   */
+  function validateSender(event) {
+    if (!getWindows) return true;
+    const windows = getWindows();
+    return Object.values(windows).some(win =>
+      win && !win.isDestroyed() && win.webContents === event.sender
+    );
+  }
+  // PIN operations (read-only — no sender validation needed)
   ipcMain.handle('security:isPINSet', () => isPINSet());
   ipcMain.handle('security:isPINEnabled', () => isPINEnabled());
-  ipcMain.handle('security:setPIN', (event, pin) => setPIN(pin));
+
+  // PIN operations (mutating — validate sender)
+  ipcMain.handle('security:setPIN', (event, pin) => {
+    if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    return { success: setPIN(pin) };
+  });
   ipcMain.handle('security:verifyPIN', (event, pin) => verifyPIN(pin));
-  ipcMain.handle('security:changePIN', (event, currentPIN, newPIN) => changePIN(currentPIN, newPIN));
+  ipcMain.handle('security:changePIN', (event, currentPIN, newPIN) => {
+    if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    return changePIN(currentPIN, newPIN);
+  });
   ipcMain.handle('security:removePIN', (event, pin) => {
-    // If PIN is provided, verify it first
-    if (pin) {
-      return removePIN(pin);
+    if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    // Always require PIN verification (S4 fix)
+    if (!pin) {
+      return { success: false, message: 'PIN is required' };
     }
-    // Otherwise, remove without verification (user already authenticated)
-    return { success: removePINNoVerify() };
+    return removePIN(pin);
   });
 
-  // Lock operations
+  // Lock operations (read-only)
   ipcMain.handle('security:isLocked', () => isAppLocked());
-  ipcMain.handle('security:unlock', (event, pin) => unlockApp(pin));
-  ipcMain.handle('security:lock', () => { lockApp(); return true; });
+  // Lock operations (mutating — validate sender)
+  ipcMain.handle('security:unlock', (event, pin) => {
+    if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    return unlockApp(pin);
+  });
+  ipcMain.handle('security:lock', (event) => {
+    if (!validateSender(event)) return false;
+    lockApp();
+    return true;
+  });
 
-  // Settings
+  // Lockout check (read-only — B4 fix)
+  ipcMain.handle('security:checkLockout', () => checkLockout());
+
+  // Settings (read-only)
   ipcMain.handle('security:getSettings', () => getSecuritySettings());
+  // Settings (mutating — validate sender)
   ipcMain.handle('security:updateSettings', (event, settings) => {
+    if (!validateSender(event)) return false;
     updateSecuritySettings(settings);
     return true;
   });
   ipcMain.handle('security:saveSettings', (event, settings) => {
+    if (!validateSender(event)) return false;
     // Handle pinEnabled separately (can only disable if PIN is set)
-    if (settings.hasOwnProperty('pinEnabled')) {
+    if (Object.hasOwn(settings, 'pinEnabled')) {
       if (settings.pinEnabled && !isPINSet()) {
         // Can't enable PIN if not set - will be handled by UI
       } else {
@@ -805,8 +829,11 @@ function registerIPCHandlers() {
     return true;
   });
 
-  // Reset
-  ipcMain.handle('security:resetApp', () => resetApp());
+  // Reset (mutating — validate sender)
+  ipcMain.handle('security:resetApp', (event) => {
+    if (!validateSender(event)) return false;
+    return resetApp();
+  });
 
   // Activity (to reset timer)
   ipcMain.on('security:activity', () => resetLockTimer());

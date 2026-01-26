@@ -96,7 +96,8 @@
     "resetWarning": "This will delete all WhatsApp sessions. You will need to scan QR codes again.",
     "cancel": "Cancel",
     "resetConfirm": "Reset Everything",
-    "unlocked": "Unlocked!"
+    "unlocked": "Unlocked!",
+    "verificationError": "Verification error"
   },
   "setup": {
     "title": "Set Up PIN",
@@ -104,6 +105,8 @@
     "confirmPin": "Confirm your PIN",
     "pinMismatch": "PINs do not match. Try again.",
     "pinSet": "PIN set successfully!",
+    "pinSetFailed": "Failed to set PIN. Try again.",
+    "pinSetError": "Error setting PIN",
     "reqLength": "4-8 digits",
     "reqNumbers": "Numbers only",
     "skip": "Skip for now"

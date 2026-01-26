@@ -44,6 +44,12 @@ let messageIcon = null;
 /** @type {boolean} Current notification state */
 let hasNotification = false;
 
+/** @type {Function|null} Callback to switch accounts */
+let _switchAccountFn = null;
+
+/** @type {Function|null} Callback to quit app properly */
+let _quitFn = null;
+
 // =============================================================================
 // Tray Creation
 // =============================================================================
@@ -60,8 +66,10 @@ let hasNotification = false;
  * @param {BrowserWindow} window - The main application window
  * @returns {Tray} The created tray instance
  */
-function createTray(window) {
+function createTray(window, switchAccountFn, quitFn) {
   mainWindow = window;
+  _switchAccountFn = switchAccountFn;
+  _quitFn = quitFn;
 
   // Load and resize the normal tray icon
   const iconPath = path.join(__dirname, '../../assets/icons/icon.png');
@@ -136,12 +144,14 @@ function updateContextMenu() {
     },
     { type: 'separator' },
 
-    // Quick account switching
+    // Quick account switching (uses callback instead of IPC — B1 fix)
     {
       label: i18n.t('menu.personal', 'Personal'),
       click: () => {
+        if (_switchAccountFn) {
+          _switchAccountFn('personal');
+        }
         if (mainWindow) {
-          mainWindow.webContents.send('switch-to-account', 'personal');
           mainWindow.show();
           mainWindow.focus();
         }
@@ -150,8 +160,10 @@ function updateContextMenu() {
     {
       label: i18n.t('menu.business', 'Business'),
       click: () => {
+        if (_switchAccountFn) {
+          _switchAccountFn('business');
+        }
         if (mainWindow) {
-          mainWindow.webContents.send('switch-to-account', 'business');
           mainWindow.show();
           mainWindow.focus();
         }
@@ -159,11 +171,15 @@ function updateContextMenu() {
     },
     { type: 'separator' },
 
-    // Quit option
+    // Quit option (uses callback to set isQuitting — B2 fix)
     {
       label: i18n.t('tray.quit', 'Quit'),
       click: () => {
-        app.quit();
+        if (_quitFn) {
+          _quitFn();
+        } else {
+          app.quit();
+        }
       }
     }
   ]);
@@ -188,23 +204,6 @@ function destroyTray() {
     tray.destroy();
     tray = null;
   }
-}
-
-// =============================================================================
-// Utility Functions
-// =============================================================================
-
-/**
- * Updates the main window reference.
- *
- * Used when the main window is recreated (e.g., on macOS
- * when activating the app after all windows were closed).
- *
- * @param {BrowserWindow} window - The new main window reference
- * @returns {void}
- */
-function setMainWindow(window) {
-  mainWindow = window;
 }
 
 // =============================================================================
@@ -237,15 +236,6 @@ function setNotificationState(hasMessages) {
   }
 }
 
-/**
- * Gets the current notification state.
- *
- * @returns {boolean} Whether there are unread messages
- */
-function hasUnreadMessages() {
-  return hasNotification;
-}
-
 // =============================================================================
 // Module Exports
 // =============================================================================
@@ -254,7 +244,5 @@ module.exports = {
   createTray,
   updateContextMenu,
   destroyTray,
-  setMainWindow,
-  setNotificationState,
-  hasUnreadMessages
+  setNotificationState
 };

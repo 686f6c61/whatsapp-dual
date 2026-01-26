@@ -1,39 +1,155 @@
 /**
- * WhatsApp Dual - Settings Window Script
+ * WhatsApp Dual - Settings Window Script (Preload API version)
  *
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.1.0
+ * @version 2.0.0
  *
  * This script handles the Settings modal window functionality.
  * It manages user preferences for the application behavior,
- * including language, startup options, and tray behavior.
+ * including language, startup options, tray behavior, theme, and security.
+ *
+ * This version does NOT use nodeIntegration. All Electron communication
+ * goes through window.electronAPI.* exposed by the preload script.
  *
  * Available Settings:
- * - Language: UI language (English/Spanish)
+ * - Language: UI language (English/Spanish/...)
  * - Start with system: Launch app on system startup
  * - Start minimized: Start hidden in system tray
  * - Minimize to tray: Hide to tray instead of closing
  * - Default account: Which account to show on startup
+ * - Theme: Light / Dark / System
+ * - Security: PIN lock, auto-lock, advanced security options
  *
  * Data Flow:
- * 1. Settings are loaded from electron-store on window open
+ * 1. Settings are loaded via window.electronAPI.settings.getAll() on window open
  * 2. User modifies settings in the UI
- * 3. On save, settings are stored locally and sent to main process
+ * 3. On save, settings are sent to main process via window.electronAPI.settings.save()
  * 4. Main process updates menu, tray, and system settings
  */
 
-const { ipcRenderer } = require('electron');
-const Store = require('electron-store');
-const i18n = require('../shared/i18n');
-
 // =============================================================================
-// State
+// Preload API Reference (no require() calls)
 // =============================================================================
 
-/** @type {Store} Persistent storage for user preferences */
-const store = new Store();
+const api = window.electronAPI;
+
+// =============================================================================
+// Translation State
+// =============================================================================
+
+/**
+ * Module-level translations object.
+ * Populated asynchronously during loadSettings() via the i18n preload API.
+ *
+ * @type {Object}
+ */
+let translations = {};
+
+// =============================================================================
+// Translation Functions
+// =============================================================================
+
+/**
+ * Retrieves a translated string for the given dot-notation key.
+ *
+ * Traverses the module-level `translations` object using the key segments.
+ * Returns the fallback (or the key itself) when the lookup fails.
+ *
+ * @param {string} key   - Dot-notation translation key, e.g. "settings.title"
+ * @param {string} [fallback] - Value to return when the key is not found
+ * @returns {string} The translated string or the fallback / key
+ */
+function t(key, fallback) {
+  const parts = key.split('.');
+  let current = translations;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') {
+      return fallback !== undefined ? fallback : key;
+    }
+    current = current[part];
+  }
+  if (typeof current === 'string') {
+    return current;
+  }
+  return fallback !== undefined ? fallback : key;
+}
+
+/**
+ * Applies translations to all elements with a data-i18n attribute.
+ *
+ * Finds every DOM element marked with [data-i18n] and replaces its
+ * text content with the corresponding translation. Also updates the
+ * document title.
+ *
+ * @returns {void}
+ */
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const key = element.getAttribute('data-i18n');
+    const translation = t(key);
+    if (translation && translation !== key) {
+      element.textContent = translation;
+    }
+  });
+
+  // Update window title
+  document.title = t('settings.title', 'Settings');
+}
+
+// =============================================================================
+// Theme Helper
+// =============================================================================
+
+/**
+ * Applies the given theme setting to the document.
+ *
+ * Supports three values:
+ *   - "light"  : Always apply light theme
+ *   - "dark"   : Always apply dark theme
+ *   - "system" : Detect the OS preference via matchMedia
+ *
+ * The actual theme is applied by setting the `data-theme` attribute on
+ * the document root element, which the CSS selectors rely on.
+ *
+ * Also registers a listener for system theme changes so that when the
+ * setting is "system", the UI reacts in real time.
+ *
+ * @param {string} theme - One of "system", "light", or "dark"
+ * @returns {void}
+ */
+function applyThemeFromSetting(theme) {
+  let effective;
+  if (theme === 'dark') {
+    effective = 'dark';
+  } else if (theme === 'light') {
+    effective = 'light';
+  } else {
+    // "system" or any unrecognised value -> detect OS preference
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      effective = 'dark';
+    } else {
+      effective = 'light';
+    }
+  }
+
+  document.documentElement.setAttribute('data-theme', effective);
+
+  // Listen for OS theme changes when following system preference
+  if (theme === 'system' && window.matchMedia) {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    // Remove any previous listener by replacing via a named handler stored on
+    // the element (avoids leaking multiple listeners).
+    if (applyThemeFromSetting._systemListener) {
+      mq.removeEventListener('change', applyThemeFromSetting._systemListener);
+    }
+    applyThemeFromSetting._systemListener = (e) => {
+      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    };
+    mq.addEventListener('change', applyThemeFromSetting._systemListener);
+  }
+}
 
 // =============================================================================
 // DOM Elements
@@ -103,9 +219,6 @@ const advancedSecuritySection = document.getElementById('advanced-security-secti
 /** @type {HTMLElement} Auto-lock timeout row */
 const autolockTimeoutRow = document.getElementById('autolock-timeout-row');
 
-/** @type {boolean} Flag indicating if PIN is currently set */
-let isPinSet = false;
-
 /** @type {HTMLButtonElement} Save button */
 const btnSave = document.getElementById('btn-save');
 
@@ -116,59 +229,53 @@ const btnCancel = document.getElementById('btn-cancel');
 const btnClose = document.getElementById('btn-close');
 
 // =============================================================================
-// Translation Functions
+// State
 // =============================================================================
 
-/**
- * Applies translations to all elements with data-i18n attribute.
- *
- * Finds all DOM elements marked with the data-i18n attribute and
- * updates their text content with the corresponding translation.
- * Also updates the window title.
- *
- * @returns {void}
- */
-function applyTranslations() {
-  document.querySelectorAll('[data-i18n]').forEach(element => {
-    const key = element.getAttribute('data-i18n');
-    const translation = i18n.t(key);
-    if (translation && translation !== key) {
-      element.textContent = translation;
-    }
-  });
-
-  // Update window title
-  document.title = i18n.t('settings.title', 'Settings');
-}
+/** @type {boolean} Flag indicating if PIN is currently set */
+let isPinSet = false;
 
 // =============================================================================
 // Settings Management
 // =============================================================================
 
 /**
- * Loads current settings from electron-store and populates the form.
+ * Loads current settings from the main process and populates the form.
  *
- * Retrieves saved preferences and sets the appropriate values
- * for all form controls. Also initializes i18n with the saved
- * language and applies translations to the UI.
+ * Retrieves saved preferences via the preload API and sets the appropriate
+ * values for all form controls. Also loads translations for the saved
+ * language and applies them to the UI.
  *
- * @returns {void}
+ * @returns {Promise<void>}
  */
 async function loadSettings() {
-  // Language
-  const savedLanguage = store.get('language', 'en');
-  selectLanguage.value = savedLanguage;
-  i18n.init(savedLanguage);
-  applyTranslations();
+  try {
+    // Fetch all settings from main process
+    const settings = await api.settings.getAll();
 
-  // Behavior
-  checkStartup.checked = store.get('startWithSystem', false);
-  checkMinimized.checked = store.get('startMinimized', false);
-  checkTray.checked = store.get('minimizeToTray', true);
-  selectDefaultAccount.value = store.get('defaultAccount', 'personal');
+    // Language
+    const savedLanguage = settings.language || 'en';
+    selectLanguage.value = savedLanguage;
 
-  // Security - Load from main process
-  await loadSecuritySettings();
+    // Load translations for the saved language
+    translations = await api.i18n.getTranslations();
+    applyTranslations();
+
+    // Theme
+    const savedTheme = settings.theme || 'system';
+    applyThemeFromSetting(savedTheme);
+
+    // Behavior
+    checkStartup.checked = settings.startWithSystem || false;
+    checkMinimized.checked = settings.startMinimized || false;
+    checkTray.checked = settings.minimizeToTray !== undefined ? settings.minimizeToTray : true;
+    selectDefaultAccount.value = settings.defaultAccount || 'personal';
+
+    // Security - Load from main process
+    await loadSecuritySettings();
+  } catch (error) {
+    console.error('Error loading settings:', error);
+  }
 }
 
 /**
@@ -183,10 +290,10 @@ async function loadSettings() {
 async function loadSecuritySettings() {
   try {
     // Check if PIN is set
-    isPinSet = await ipcRenderer.invoke('security:isPINSet');
+    isPinSet = await api.security.isPINSet();
 
     // Get security settings from main process
-    const settings = await ipcRenderer.invoke('security:getSettings');
+    const settings = await api.security.getSettings();
 
     // PIN enabled checkbox
     checkPinEnabled.checked = settings.pinEnabled || false;
@@ -220,17 +327,19 @@ async function loadSecuritySettings() {
  * - PIN not set: Show "Set up PIN" button
  * - PIN set: Show "Change PIN" and "Remove PIN" buttons
  *
+ * Uses the .js-hidden CSS class for visibility toggling (CSP safe).
+ *
  * @returns {void}
  */
 function updatePinButtonsVisibility() {
   if (isPinSet) {
-    btnSetupPin.style.display = 'none';
-    btnChangePin.style.display = 'inline-block';
-    btnRemovePin.style.display = 'inline-block';
+    btnSetupPin.classList.add('js-hidden');
+    btnChangePin.classList.remove('js-hidden');
+    btnRemovePin.classList.remove('js-hidden');
   } else {
-    btnSetupPin.style.display = 'inline-block';
-    btnChangePin.style.display = 'none';
-    btnRemovePin.style.display = 'none';
+    btnSetupPin.classList.remove('js-hidden');
+    btnChangePin.classList.add('js-hidden');
+    btnRemovePin.classList.add('js-hidden');
   }
 }
 
@@ -241,13 +350,15 @@ function updatePinButtonsVisibility() {
  * PIN protection is enabled. Hide these sections when disabled
  * to reduce UI complexity.
  *
+ * Uses the .js-hidden CSS class for visibility toggling (CSP safe).
+ *
  * @returns {void}
  */
 function updateSecuritySectionsVisibility() {
   const show = checkPinEnabled.checked && isPinSet;
-  autolockSection.style.display = show ? 'block' : 'none';
-  advancedSecuritySection.style.display = show ? 'block' : 'none';
-  lockNowRow.style.display = show ? 'flex' : 'none';
+  autolockSection.classList.toggle('js-hidden', !show);
+  advancedSecuritySection.classList.toggle('js-hidden', !show);
+  lockNowRow.classList.toggle('js-hidden', !show);
 }
 
 /**
@@ -263,38 +374,37 @@ function updateAutolockTimeoutVisibility() {
 }
 
 /**
- * Saves all settings to electron-store and notifies the main process.
+ * Saves all settings and notifies the main process.
  *
- * Persists user preferences to disk and sends an IPC message
- * to the main process so it can update the application menu,
- * tray, and system login items accordingly.
+ * Persists user preferences via the preload API so the main process
+ * can update the application menu, tray, and system login items.
  *
  * After saving, the settings window is closed.
  *
- * @returns {void}
+ * @returns {Promise<void>}
  */
 async function saveSettings() {
-  // Save to store
-  store.set('language', selectLanguage.value);
-  store.set('startWithSystem', checkStartup.checked);
-  store.set('startMinimized', checkMinimized.checked);
-  store.set('minimizeToTray', checkTray.checked);
-  store.set('defaultAccount', selectDefaultAccount.value);
+  try {
+    // Build the settings object
+    const settingsData = {
+      language: selectLanguage.value,
+      startWithSystem: checkStartup.checked,
+      startMinimized: checkMinimized.checked,
+      minimizeToTray: checkTray.checked,
+      defaultAccount: selectDefaultAccount.value
+    };
 
-  // Notify main process to rebuild menu with new language
-  ipcRenderer.send('settings-changed', {
-    language: selectLanguage.value,
-    startWithSystem: checkStartup.checked,
-    startMinimized: checkMinimized.checked,
-    minimizeToTray: checkTray.checked,
-    defaultAccount: selectDefaultAccount.value
-  });
+    // Save general settings (this also notifies the main process)
+    await api.settings.save(settingsData);
 
-  // Save security settings to main process
-  await saveSecuritySettings();
+    // Save security settings to main process
+    await saveSecuritySettings();
 
-  // Close window
-  window.close();
+    // Close window via preload API
+    api.window.close();
+  } catch (error) {
+    console.error('Error saving settings:', error);
+  }
 }
 
 /**
@@ -318,7 +428,7 @@ async function saveSecuritySettings() {
       deleteOnMaxAttempts: checkDeleteOnMax.checked
     };
 
-    await ipcRenderer.invoke('security:saveSettings', securitySettings);
+    await api.security.saveSettings(securitySettings);
   } catch (error) {
     console.error('Error saving security settings:', error);
   }
@@ -334,7 +444,7 @@ async function saveSecuritySettings() {
  * @returns {void}
  */
 function closeWindow() {
-  window.close();
+  api.window.close();
 }
 
 // =============================================================================
@@ -349,13 +459,18 @@ btnClose.addEventListener('click', closeWindow);
 /**
  * Preview language changes in real-time.
  *
- * When the user selects a different language, immediately
- * update the UI to show translations in that language.
+ * When the user selects a different language, fetch the translations
+ * for that language via the preload API and immediately update the UI.
  * This allows users to preview before saving.
  */
-selectLanguage.addEventListener('change', () => {
-  i18n.setLanguage(selectLanguage.value);
-  applyTranslations();
+selectLanguage.addEventListener('change', async () => {
+  try {
+    const lang = selectLanguage.value;
+    translations = await api.i18n.getTranslationsForLanguage(lang);
+    applyTranslations();
+  } catch (error) {
+    console.error('Error loading translations for preview:', error);
+  }
 });
 
 /**
@@ -380,17 +495,21 @@ document.addEventListener('keydown', (e) => {
 /**
  * PIN enabled checkbox change handler.
  *
- * When enabling PIN protection without a PIN set, opens the PIN setup.
+ * When enabling PIN protection without a PIN set, opens the PIN setup
+ * window and waits for the setup to complete via the onPINSetupComplete
+ * callback (fixes the B5 race condition that existed with setTimeout).
+ *
  * Updates visibility of related sections accordingly.
  */
 checkPinEnabled.addEventListener('change', async () => {
   if (checkPinEnabled.checked && !isPinSet) {
-    // Need to set up PIN first
-    ipcRenderer.send('security:setupPIN');
-    // Reload settings after PIN setup
-    setTimeout(async () => {
+    // Need to set up PIN first - open PIN setup window
+    api.security.setupPIN();
+
+    // Wait for PIN setup to complete instead of using setTimeout (fixes B5)
+    api.security.onPINSetupComplete(async () => {
       await loadSecuritySettings();
-    }, 500);
+    });
   }
   updateSecuritySectionsVisibility();
 });
@@ -407,55 +526,75 @@ checkAutolock.addEventListener('change', () => {
 /**
  * Set up PIN button click handler.
  *
- * Opens the PIN setup window.
+ * Opens the PIN setup window and listens for completion.
  */
 btnSetupPin.addEventListener('click', () => {
-  ipcRenderer.send('security:setupPIN');
-  // Close settings to show PIN setup
-  window.close();
+  api.security.setupPIN();
+
+  // Listen for PIN setup completion and reload settings
+  api.security.onPINSetupComplete(async () => {
+    await loadSecuritySettings();
+  });
 });
 
 /**
  * Change PIN button click handler.
  *
- * Opens the PIN setup window to change existing PIN.
+ * Opens the PIN setup window to change existing PIN and listens for completion.
  */
 btnChangePin.addEventListener('click', () => {
-  ipcRenderer.send('security:setupPIN');
-  // Close settings to show PIN setup
-  window.close();
+  api.security.setupPIN();
+
+  // Listen for PIN setup completion and reload settings
+  api.security.onPINSetupComplete(async () => {
+    await loadSecuritySettings();
+  });
 });
 
 /**
  * Lock Now button click handler.
  *
- * Locks the app immediately.
+ * Locks the app immediately and closes the settings window.
  */
 btnLockNow.addEventListener('click', () => {
-  ipcRenderer.send('security:lockNow');
-  window.close();
+  api.security.lockNow();
+  api.window.close();
 });
 
 /**
  * Remove PIN button click handler.
  *
- * Removes the current PIN after confirmation.
+ * Prompts the user for their current PIN before removing it (fixes S4).
+ * If the PIN is correct the lock is removed and the UI is updated.
  */
 btnRemovePin.addEventListener('click', async () => {
-  const confirmed = confirm(
-    i18n.t('lock.resetWarning', 'This will remove PIN protection. Are you sure?')
+  // Prompt for current PIN before removal (security fix S4)
+  const currentPin = prompt(
+    t('lock.enterPin', 'Enter your PIN to confirm removal')
   );
 
-  if (confirmed) {
-    try {
-      await ipcRenderer.invoke('security:removePIN');
+  // User cancelled the prompt
+  if (currentPin === null) {
+    return;
+  }
+
+  try {
+    const result = await api.security.removePIN(currentPin);
+
+    if (result && result.success) {
       isPinSet = false;
       checkPinEnabled.checked = false;
       updatePinButtonsVisibility();
       updateSecuritySectionsVisibility();
-    } catch (error) {
-      console.error('Error removing PIN:', error);
+    } else {
+      // PIN was incorrect or removal failed
+      const msg = (result && result.message)
+        ? result.message
+        : t('lock.incorrectPin', 'Incorrect PIN');
+      alert(msg);
     }
+  } catch (error) {
+    console.error('Error removing PIN:', error);
   }
 });
 
@@ -467,7 +606,7 @@ btnRemovePin.addEventListener('click', async () => {
 checkDeleteOnMax.addEventListener('change', () => {
   if (checkDeleteOnMax.checked) {
     const confirmed = confirm(
-      i18n.t('settings.deleteOnMaxAttemptsWarning',
+      t('settings.deleteOnMaxAttemptsWarning',
         'Warning: This will delete all WhatsApp sessions if max attempts are reached. Are you sure?')
     );
 

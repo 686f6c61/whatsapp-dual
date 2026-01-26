@@ -15,6 +15,30 @@
 let currentPIN = '';
 let firstPIN = '';
 let step = 1; // 1 = enter new PIN, 2 = confirm PIN
+let translations = {}; // Q8 — i18n translations
+
+// =============================================================================
+// Translation Helper (Q8)
+// =============================================================================
+
+/**
+ * Retrieves a translated string by dot-notation key.
+ *
+ * @param {string} key - Dot-notation key
+ * @param {string} [fallback] - Fallback if key not found
+ * @returns {string}
+ */
+function t(key, fallback) {
+  const parts = key.split('.');
+  let current = translations;
+  for (const part of parts) {
+    if (current == null || typeof current !== 'object') {
+      return fallback !== undefined ? fallback : key;
+    }
+    current = current[part];
+  }
+  return typeof current === 'string' ? current : (fallback !== undefined ? fallback : key);
+}
 
 // =============================================================================
 // DOM Elements
@@ -152,7 +176,7 @@ async function submitStep() {
       await savePIN();
     } else {
       showPINError();
-      showStatus('PINs do not match. Try again.', 'error');
+      showStatus(t('setup.pinMismatch', 'PINs do not match. Try again.'), 'error');
       // Reset to step 1
       step = 1;
       firstPIN = '';
@@ -180,10 +204,10 @@ function updateStepUI() {
   // Update subtitle
   if (setupSubtitle) {
     if (step === 1) {
-      setupSubtitle.textContent = 'Enter a new PIN (4-8 digits)';
+      setupSubtitle.textContent = t('setup.enterNew', 'Enter a new PIN (4-8 digits)');
       setupSubtitle.setAttribute('data-i18n', 'setup.enterNew');
     } else {
-      setupSubtitle.textContent = 'Confirm your PIN';
+      setupSubtitle.textContent = t('setup.confirmPin', 'Confirm your PIN');
       setupSubtitle.setAttribute('data-i18n', 'setup.confirmPin');
     }
   }
@@ -202,15 +226,15 @@ async function savePIN() {
   try {
     const result = await window.electronAPI.security.setPIN(currentPIN);
 
-    if (result) {
-      showStatus('PIN set successfully!', 'success');
+    if (result && result.success) {
+      showStatus(t('setup.pinSet', 'PIN set successfully!'), 'success');
 
       // Notify main process to continue to main app
       setTimeout(() => {
         window.electronAPI.security.pinSetupComplete();
       }, 500);
     } else {
-      showStatus('Failed to set PIN. Try again.', 'error');
+      showStatus(t('setup.pinSetFailed', 'Failed to set PIN. Try again.'), 'error');
       step = 1;
       firstPIN = '';
       updateStepUI();
@@ -218,7 +242,7 @@ async function savePIN() {
     }
   } catch (error) {
     console.error('Error setting PIN:', error);
-    showStatus('Error setting PIN', 'error');
+    showStatus(t('setup.pinSetError', 'Error setting PIN'), 'error');
   }
 }
 
@@ -304,9 +328,18 @@ if (skipBtn) {
 /**
  * Initialize the setup screen.
  */
-function init() {
+async function init() {
   // Focus for keyboard input
   document.body.focus();
+
+  // Q8 — Load translations
+  try {
+    if (window.electronAPI && window.electronAPI.i18n) {
+      translations = await window.electronAPI.i18n.getTranslations() || {};
+    }
+  } catch (error) {
+    console.error('Error loading translations:', error);
+  }
 
   // Initial validation
   validatePIN();

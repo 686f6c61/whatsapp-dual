@@ -50,7 +50,7 @@ const security = require('./security');
  * @param {BrowserWindow} mainWindow - Reference to the main window (for dialogs)
  * @returns {void}
  */
-function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow) {
+function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow, quitFn, reloadFn) {
   // Add visual indicator to Help menu when update is available
   const helpLabel = updater.isUpdateAvailable()
     ? `${i18n.t('menu.help', 'Help')} (!)`
@@ -101,15 +101,21 @@ function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow) {
         {
           label: i18n.t('menu.reload', 'Reload'),
           accelerator: 'CmdOrCtrl+R',
-          click: (item, focusedWindow) => {
-            if (focusedWindow) focusedWindow.reload();
+          click: () => {
+            if (reloadFn) reloadFn();
           }
         },
         { type: 'separator' },
         {
           label: i18n.t('menu.quit', 'Quit'),
           accelerator: 'CmdOrCtrl+Q',
-          click: () => app.quit()
+          click: () => {
+            if (quitFn) {
+              quitFn();
+            } else {
+              app.quit();
+            }
+          }
         }
       ]
     },
