@@ -51,6 +51,7 @@ jobs:
           path: |
             dist/*.deb
             dist/*.AppImage
+            dist/latest-linux.yml
           retention-days: 5
 
   release:
@@ -107,6 +108,7 @@ jobs:
           files: |
             dist/*.deb
             dist/*.AppImage
+            dist/latest-linux.yml
             dist/SHA256SUMS.txt
           draft: false
           prerelease: false

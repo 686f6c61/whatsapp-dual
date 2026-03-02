@@ -80,11 +80,12 @@ linux:
   synopsis: WhatsApp Personal and Business in one app
   description: Use WhatsApp Personal and WhatsApp Business simultaneously in a single desktop application.
   desktop:
-    Name: WhatsApp Dual
-    Comment: WhatsApp Personal and Business in one app
-    Categories: Network;InstantMessaging;Chat;
-    Keywords: whatsapp;chat;messaging;business;
-    StartupWMClass: whatsapp-dual
+    entry:
+      Name: WhatsApp Dual
+      Comment: WhatsApp Personal and Business in one app
+      Categories: Network;InstantMessaging;Chat;
+      Keywords: whatsapp;chat;messaging;business;
+      StartupWMClass: whatsapp-dual
   # Required for Electron 33+ sandbox on Linux
   executableArgs:
     - "--no-sandbox"
