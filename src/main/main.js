@@ -4,7 +4,6 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.2.1
  *
  * This is the main Electron process that orchestrates the entire application.
  * It creates and manages the main window with two isolated BrowserViews,
@@ -27,7 +26,7 @@
  * maintains its own cookies, localStorage, and session data.
  */
 
-const { app, BrowserWindow, BrowserView, ipcMain, dialog, shell } = require('electron');
+const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const Store = require('electron-store');
 const { WHATSAPP_URL, ACCOUNTS, WINDOW_CONFIG } = require('../shared/constants');
@@ -54,7 +53,7 @@ let mainWindow = null;
 /** @type {BrowserWindow|null} Settings modal window */
 let settingsWindow = null;
 
-/** @type {Object.<string, BrowserView>} BrowserViews for each WhatsApp account */
+/** @type {Object.<string, WebContentsView>} WebContentsViews for each WhatsApp account */
 let views = {};
 
 /** @type {string} Currently active account ID */
@@ -68,6 +67,17 @@ let isShowingLockScreen = false;
 
 /** @type {BrowserWindow|null} Lock screen window */
 let lockWindow = null;
+
+/** Sets quitting flag and exits the app. Used by menu and tray. */
+const quitApp = () => { isQuitting = true; app.quit(); };
+
+/** Reloads the active WebContentsView. Used by menu. */
+const reloadActiveView = () => {
+  const view = views[currentAccount];
+  if (view && view.webContents) {
+    view.webContents.reload();
+  }
+};
 
 /**
  * Custom User-Agent string to avoid WhatsApp Web blocking.
@@ -110,17 +120,6 @@ function createWindow() {
       contextIsolation: true
     }
   });
-
-  // Quit helper — sets flag so minimize-to-tray doesn't block quit (B2 fix)
-  const quitApp = () => { isQuitting = true; app.quit(); };
-
-  // Reload helper — reloads the active BrowserView, not the main window (B3 fix)
-  const reloadActiveView = () => {
-    const view = views[currentAccount];
-    if (view && view.webContents) {
-      view.webContents.reload();
-    }
-  };
 
   // Create custom menu
   createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
@@ -302,7 +301,7 @@ function setupDownloadHandler(webContents) {
  * @returns {BrowserView} The configured BrowserView
  */
 function createAccountView(accountConfig) {
-  const view = new BrowserView({
+  const view = new WebContentsView({
     webPreferences: {
       partition: accountConfig.partition,
       nodeIntegration: false,
@@ -382,11 +381,11 @@ function switchAccount(accountId) {
 
   currentAccount = accountId;
 
-  // Remove all current views (Q5 — uses non-deprecated getBrowserViews())
-  mainWindow.getBrowserViews().forEach(v => mainWindow.removeBrowserView(v));
+  // Remove all current views
+  mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
 
   // Add new view
-  mainWindow.addBrowserView(views[accountId]);
+  mainWindow.contentView.addChildView(views[accountId]);
   updateViewBounds();
 
   // Update window title
@@ -497,9 +496,9 @@ function showLockScreen() {
 
   isShowingLockScreen = true;
 
-  // Hide main window views (Q5 — uses non-deprecated getBrowserViews())
+  // Hide main window views
   if (mainWindow) {
-    mainWindow.getBrowserViews().forEach(v => mainWindow.removeBrowserView(v));
+    mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
   }
 
   lockWindow = new BrowserWindow({
@@ -519,6 +518,7 @@ function showLockScreen() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       preload: path.join(__dirname, 'preload-lock.js')
     }
   });
@@ -545,13 +545,13 @@ function hideLockScreen() {
     lockWindow = null;
   }
 
-  // Restore main window view (Q5 — uses non-deprecated addBrowserView())
+  // Restore main window view
   if (mainWindow) {
     // Re-add the view for current account
     const view = views[currentAccount];
     if (view) {
-      mainWindow.getBrowserViews().forEach(v => mainWindow.removeBrowserView(v));
-      mainWindow.addBrowserView(view);
+      mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
+      mainWindow.contentView.addChildView(view);
       updateViewBounds();
     }
     mainWindow.show();
@@ -585,6 +585,7 @@ function showPINSetupScreen() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       preload: path.join(__dirname, 'preload-lock.js')
     }
   });
@@ -660,64 +661,10 @@ function initializeSecurity() {
  * to perform actions that require main process privileges.
  */
 
-/** Handle account switch requests from renderer */
-ipcMain.on('switch-account', (event, accountId) => {
-  switchAccount(accountId);
-});
-
-/** Return current active account to renderer */
-ipcMain.on('get-current-account', (event) => {
-  event.reply('current-account', currentAccount);
-});
-
-/** Open settings window from renderer request (S3 — guard added in createSettingsWindow) */
-ipcMain.on('open-settings', () => {
-  createSettingsWindow();
-});
-
 /** Close settings window from renderer request */
 ipcMain.on('close-settings', () => {
   if (settingsWindow) {
     settingsWindow.close();
-  }
-});
-
-/** Open about dialog from renderer request */
-ipcMain.on('open-about', () => {
-  createAboutWindow();
-});
-
-/**
- * Handle settings changes from the settings window.
- *
- * When settings are saved, this handler:
- * 1. Updates the language and rebuilds UI if changed
- * 2. Configures system login items for auto-start
- *
- * @param {Object} settings - The updated settings object
- * @param {string} [settings.language] - New language code
- * @param {boolean} [settings.startWithSystem] - Auto-start preference
- * @param {boolean} [settings.startMinimized] - Start minimized preference
- */
-ipcMain.on('settings-changed', (event, settings) => {
-  // Handle language change - rebuild menu and tray with new translations
-  if (settings.language) {
-    i18n.setLanguage(settings.language);
-    const quitApp = () => { isQuitting = true; app.quit(); };
-    const reloadActiveView = () => {
-      const view = views[currentAccount];
-      if (view && view.webContents) view.webContents.reload();
-    };
-    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
-    updateContextMenu();
-  }
-
-  // Configure system auto-start settings
-  if (settings.startWithSystem !== undefined) {
-    app.setLoginItemSettings({
-      openAtLogin: settings.startWithSystem,
-      openAsHidden: settings.startMinimized
-    });
   }
 });
 
@@ -739,21 +686,36 @@ ipcMain.handle('settings:getAll', () => {
 
 /** Save settings from the settings window */
 ipcMain.handle('settings:save', (event, settings) => {
-  // Persist each setting
-  if (settings.language !== undefined) store.set('language', settings.language);
-  if (settings.startWithSystem !== undefined) store.set('startWithSystem', settings.startWithSystem);
-  if (settings.startMinimized !== undefined) store.set('startMinimized', settings.startMinimized);
-  if (settings.minimizeToTray !== undefined) store.set('minimizeToTray', settings.minimizeToTray);
-  if (settings.defaultAccount !== undefined) store.set('defaultAccount', settings.defaultAccount);
+  if (typeof settings !== 'object' || settings === null) return false;
+
+  const availableLanguages = i18n.getAvailableLanguages();
+  const validAccounts = ['personal', 'business'];
+
+  // Validate and persist each setting
+  if (settings.language !== undefined) {
+    if (typeof settings.language !== 'string' || !availableLanguages.includes(settings.language)) return false;
+    store.set('language', settings.language);
+  }
+  if (settings.startWithSystem !== undefined) {
+    if (typeof settings.startWithSystem !== 'boolean') return false;
+    store.set('startWithSystem', settings.startWithSystem);
+  }
+  if (settings.startMinimized !== undefined) {
+    if (typeof settings.startMinimized !== 'boolean') return false;
+    store.set('startMinimized', settings.startMinimized);
+  }
+  if (settings.minimizeToTray !== undefined) {
+    if (typeof settings.minimizeToTray !== 'boolean') return false;
+    store.set('minimizeToTray', settings.minimizeToTray);
+  }
+  if (settings.defaultAccount !== undefined) {
+    if (typeof settings.defaultAccount !== 'string' || !validAccounts.includes(settings.defaultAccount)) return false;
+    store.set('defaultAccount', settings.defaultAccount);
+  }
 
   // Apply language change
   if (settings.language) {
     i18n.setLanguage(settings.language);
-    const quitApp = () => { isQuitting = true; app.quit(); };
-    const reloadActiveView = () => {
-      const view = views[currentAccount];
-      if (view && view.webContents) view.webContents.reload();
-    };
     createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
     updateContextMenu();
   }
@@ -797,12 +759,6 @@ ipcMain.handle('i18n:getTranslationsForLanguage', (event, lang) => {
   // Restore original language
   i18n.loadLanguage(currentLang);
   return translations;
-});
-
-/** Handle quit request from renderer or tray */
-ipcMain.on('quit-app', () => {
-  isQuitting = true;
-  app.quit();
 });
 
 // =============================================================================

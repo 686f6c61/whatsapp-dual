@@ -5,8 +5,7 @@
  * License: MIT
  * Repository: https://github.com/686f6c61/whatsapp-dual
  *
- * Styles specific to the Settings modal window.
- * This stylesheet extends main.css and uses the same CSS variables.
+ * Styles for the Settings modal window.
  *
  * Structure:
  * - Container: Full-height flexbox layout
@@ -15,14 +14,36 @@
  * - Footer: Action buttons (Cancel/Save)
  *
  * Sections:
- * 1. Container Layout
- * 2. Header
- * 3. Content Area
- * 4. Settings Sections
- * 5. Form Elements (Select, Checkbox)
- * 6. Footer & Buttons
- * 7. Focus Styles
+ * 1. Theme Imports & Reset
+ * 2. Container Layout
+ * 3. Header
+ * 4. Content Area
+ * 5. Settings Sections
+ * 6. Form Elements (Select, Checkbox)
+ * 7. Footer & Buttons
+ * 8. Focus Styles
  */
+
+/* =============================================================================
+   Theme Imports
+   Load CSS variables and theme-specific overrides
+   ============================================================================= */
+@import './themes/variables.css';
+@import './themes/light.css';
+@import './themes/dark.css';
+
+/* =============================================================================
+   Reset & Base Styles
+   ============================================================================= */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
 
 /* =============================================================================
    Utility Classes

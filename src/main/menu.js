@@ -4,7 +4,6 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.1.0
  *
  * This module creates and manages the native application menu bar.
  * The menu provides quick access to all app features and is fully

@@ -5,6 +5,41 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-03-02
+
+### Security
+
+- **Electron 39**: Updated from Electron 33 to 39, resolving 13 npm vulnerabilities including ASAR bypass and tar path traversal
+- **electron-builder 26**: Updated from 25.1.8 to 26.x
+- **electron-updater 6.8**: Updated from 6.3.9 to 6.8.3
+- **IPC sender validation**: Added `validateSender` check to `verifyPIN` handler (was missing unlike other mutating handlers)
+- **IPC type validation**: All mutating IPC handlers now verify argument types (`typeof pin === 'string'`, `typeof settings === 'object'`)
+- **Settings input validation**: `settings:save` now validates language against available languages list, defaultAccount against whitelist, and booleans against type
+- **Lock window sandbox**: Both lock screen and PIN setup windows now run with `sandbox: true`
+- **CSP frame-src**: Added `frame-src 'none'` to Content Security Policy on settings.html, lock.html, and lock-setup.html
+- **Listener leak fix**: Changed `ipcRenderer.on('security:pinSetupDone')` to `ipcRenderer.once()` in preload-settings to prevent listener accumulation
+- **SHA256 checksums**: Release workflow now generates and publishes SHA256SUMS.txt for all artifacts
+
+### Changed
+
+- **BrowserView -> WebContentsView**: Migrated from deprecated `BrowserView` API to `WebContentsView` with `contentView.addChildView()`/`removeChildView()` pattern
+- **Node.js 22**: CI workflow updated from Node 20 to Node 22
+- **Copyright**: Updated copyright year range to 2024-2026
+- **postinst.sh**: Connected existing post-install script to electron-builder deb configuration
+
+### Improved
+
+- **Module-level helpers**: Extracted `quitApp()` and `reloadActiveView()` from `createWindow()` closure to module scope, eliminating duplicate definitions in `settings:save`
+- **powerMonitor guard**: Added `powerMonitorInitialized` flag to prevent duplicate `suspend`/`lock-screen` listener registration
+
+### Removed
+
+- **Dead renderer files**: Removed `index.html`, `renderer.js`, `theme.js`, `renderer/js/i18n.js`, and `main.css` (never loaded by mainWindow)
+- **Dead IPC handlers**: Removed `switch-account`, `get-current-account`, `open-settings`, `open-about`, `settings-changed`, `quit-app` (only called from dead renderer.js)
+- **Dead constant**: Removed `SHORTCUTS` from constants.js (unused since v1.2.1 removed global shortcuts)
+- **Dead preload listener**: Removed `settings.onChanged` from preload-settings.js (`settings-updated` channel was never sent)
+- **Version tags**: Removed per-file `@version` JSDoc tags (version tracked in package.json only)
+
 ## [1.2.1] - 2026-01-26
 
 ### Security
@@ -203,6 +238,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.3.0 | 2026-03-02 | Electron 39, WebContentsView, security audit fixes, dead code removal |
 | 1.2.1 | 2026-01-26 | Security hardening, bug fixes, code quality |
 | 1.2.0 | 2026-01-26 | File downloads |
 | 1.1.5 | 2026-01-06 | Tray notification indicator for unread messages |

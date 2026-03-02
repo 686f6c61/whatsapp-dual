@@ -4,7 +4,6 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.2.1
  *
  * Secure preload script for the Settings window.
  * Uses contextBridge to expose a minimal API surface to the renderer,
@@ -17,10 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Settings operations
   settings: {
     getAll: () => ipcRenderer.invoke('settings:getAll'),
-    save: (settings) => ipcRenderer.invoke('settings:save', settings),
-    onChanged: (callback) => {
-      ipcRenderer.on('settings-updated', () => callback());
-    }
+    save: (settings) => ipcRenderer.invoke('settings:save', settings)
   },
 
   // i18n operations
@@ -41,7 +37,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setupPIN: () => ipcRenderer.send('security:setupPIN'),
     lockNow: () => ipcRenderer.send('security:lockNow'),
     onPINSetupComplete: (callback) => {
-      ipcRenderer.on('security:pinSetupDone', () => callback());
+      ipcRenderer.once('security:pinSetupDone', () => callback());
     }
   },
 

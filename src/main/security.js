@@ -4,7 +4,6 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.1.0
  *
  * This module handles all security-related functionality:
  * - PIN/password protection with secure hashing
@@ -55,6 +54,7 @@ let isLocked = false;
 let mainWindowRef = null;
 let onLockCallback = null;
 let onUnlockCallback = null;
+let powerMonitorInitialized = false;
 
 // =============================================================================
 // PIN Management
@@ -323,21 +323,25 @@ function initAutoLock(mainWindow, onLock, onUnlock) {
   onLockCallback = onLock;
   onUnlockCallback = onUnlock;
 
-  // System power events
-  if (store.get('security.lockOnSuspend', SECURITY_DEFAULTS.lockOnSuspend)) {
-    powerMonitor.on('suspend', () => {
-      if (isPINEnabled()) {
-        lockApp();
-      }
-    });
-  }
+  // System power events (register once to avoid duplicate listeners)
+  if (!powerMonitorInitialized) {
+    powerMonitorInitialized = true;
 
-  if (store.get('security.lockOnScreenLock', SECURITY_DEFAULTS.lockOnScreenLock)) {
-    powerMonitor.on('lock-screen', () => {
-      if (isPINEnabled()) {
-        lockApp();
-      }
-    });
+    if (store.get('security.lockOnSuspend', SECURITY_DEFAULTS.lockOnSuspend)) {
+      powerMonitor.on('suspend', () => {
+        if (isPINEnabled()) {
+          lockApp();
+        }
+      });
+    }
+
+    if (store.get('security.lockOnScreenLock', SECURITY_DEFAULTS.lockOnScreenLock)) {
+      powerMonitor.on('lock-screen', () => {
+        if (isPINEnabled()) {
+          lockApp();
+        }
+      });
+    }
   }
 
   // Start inactivity timer
@@ -774,19 +778,22 @@ function registerIPCHandlers(getWindows) {
   // PIN operations (mutating — validate sender)
   ipcMain.handle('security:setPIN', (event, pin) => {
     if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    if (typeof pin !== 'string') return { success: false, message: 'Invalid input' };
     return { success: setPIN(pin) };
   });
-  ipcMain.handle('security:verifyPIN', (event, pin) => verifyPIN(pin));
+  ipcMain.handle('security:verifyPIN', (event, pin) => {
+    if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    if (typeof pin !== 'string') return { success: false, message: 'Invalid input' };
+    return verifyPIN(pin);
+  });
   ipcMain.handle('security:changePIN', (event, currentPIN, newPIN) => {
     if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    if (typeof currentPIN !== 'string' || typeof newPIN !== 'string') return { success: false, message: 'Invalid input' };
     return changePIN(currentPIN, newPIN);
   });
   ipcMain.handle('security:removePIN', (event, pin) => {
     if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
-    // Always require PIN verification (S4 fix)
-    if (!pin) {
-      return { success: false, message: 'PIN is required' };
-    }
+    if (typeof pin !== 'string' || !pin) return { success: false, message: 'PIN is required' };
     return removePIN(pin);
   });
 
@@ -795,6 +802,7 @@ function registerIPCHandlers(getWindows) {
   // Lock operations (mutating — validate sender)
   ipcMain.handle('security:unlock', (event, pin) => {
     if (!validateSender(event)) return { success: false, message: 'Unauthorized' };
+    if (typeof pin !== 'string') return { success: false, message: 'Invalid input' };
     return unlockApp(pin);
   });
   ipcMain.handle('security:lock', (event) => {
@@ -811,11 +819,13 @@ function registerIPCHandlers(getWindows) {
   // Settings (mutating — validate sender)
   ipcMain.handle('security:updateSettings', (event, settings) => {
     if (!validateSender(event)) return false;
+    if (typeof settings !== 'object' || settings === null) return false;
     updateSecuritySettings(settings);
     return true;
   });
   ipcMain.handle('security:saveSettings', (event, settings) => {
     if (!validateSender(event)) return false;
+    if (typeof settings !== 'object' || settings === null) return false;
     // Handle pinEnabled separately (can only disable if PIN is set)
     if (Object.hasOwn(settings, 'pinEnabled')) {
       if (settings.pinEnabled && !isPINSet()) {

@@ -4,7 +4,6 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 2.0.0
  *
  * This script handles the Settings modal window functionality.
  * It manages user preferences for the application behavior,

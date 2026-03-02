@@ -24,7 +24,7 @@
 # =============================================================================
 appId: com.whatsapp-dual.app
 productName: WhatsAppDual
-copyright: Copyright (c) 2024 WhatsApp Dual Contributors
+copyright: Copyright (c) 2024-2026 WhatsApp Dual Contributors
 
 # =============================================================================
 # Directory Configuration
@@ -94,6 +94,7 @@ linux:
 # For Ubuntu, Debian, Linux Mint, and derivatives
 # =============================================================================
 deb:
+  afterInstall: build/scripts/postinst.sh
   depends:
     - libnotify4
     - libxtst6

@@ -4,7 +4,6 @@
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.1.0
  *
  * This module centralizes all application constants to ensure consistency
  * across the codebase and simplify configuration management.
@@ -13,7 +12,6 @@
  * - URL: WhatsApp Web endpoint
  * - ACCOUNTS: Account configurations with isolated session partitions
  * - WINDOW_CONFIG: Default window dimensions
- * - SHORTCUTS: Global keyboard accelerators
  *
  * Session Partition System:
  * Each account uses a persistent partition (persist:name) which ensures:
@@ -89,38 +87,11 @@ const WINDOW_CONFIG = {
 };
 
 // =============================================================================
-// Keyboard Shortcuts
-// =============================================================================
-
-/**
- * Global keyboard shortcuts.
- *
- * Uses Electron's accelerator format with CmdOrCtrl for cross-platform
- * compatibility (Cmd on macOS, Ctrl on Windows/Linux).
- *
- * These shortcuts are registered globally and work even when
- * the app window is not focused.
- *
- * @constant {Object}
- * @property {string} PERSONAL - Switch to Personal account (Ctrl+1)
- * @property {string} BUSINESS - Switch to Business account (Ctrl+2)
- * @property {string} SETTINGS - Open settings window (Ctrl+,)
- * @property {string} QUIT - Quit application (Ctrl+Q)
- */
-const SHORTCUTS = {
-  PERSONAL: 'CmdOrCtrl+1',
-  BUSINESS: 'CmdOrCtrl+2',
-  SETTINGS: 'CmdOrCtrl+,',
-  QUIT: 'CmdOrCtrl+Q'
-};
-
-// =============================================================================
 // Module Exports
 // =============================================================================
 
 module.exports = {
   WHATSAPP_URL,
   ACCOUNTS,
-  WINDOW_CONFIG,
-  SHORTCUTS
+  WINDOW_CONFIG
 };

@@ -24,7 +24,7 @@ Understanding how WhatsApp Dual achieves session isolation helps appreciate why 
 
 ### Account Isolation Architecture
 
-WhatsApp Dual uses Electron's BrowserView technology combined with isolated session partitions to ensure complete separation between your Personal and Business accounts. This architecture provides several key benefits:
+WhatsApp Dual uses Electron's WebContentsView technology combined with isolated session partitions to ensure complete separation between your Personal and Business accounts. This architecture provides several key benefits:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -32,7 +32,7 @@ WhatsApp Dual uses Electron's BrowserView technology combined with isolated sess
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
 │   ┌─────────────────────┐   ┌─────────────────────┐         │
-│   │   BrowserView       │   │   BrowserView       │         │
+│   │   WebContentsView   │   │   WebContentsView   │         │
 │   │   (Personal)        │   │   (Business)        │         │
 │   │                     │   │                     │         │
 │   │   Session:          │   │   Session:          │         │
@@ -56,6 +56,8 @@ WhatsApp Dual uses Electron's BrowserView technology combined with isolated sess
 
 - **Privacy**: Each account has its own isolated storage, so Personal and Business data never mix.
 
+- **Sandboxed Views**: All WebContentsViews and lock windows run with `sandbox: true` for additional process isolation.
+
 ## Installation
 
 WhatsApp Dual offers multiple installation methods to suit different preferences. Choose the one that best fits your needs and Linux distribution.
@@ -66,10 +68,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.1.5_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.3.0_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.1.5_amd64.deb
+sudo dpkg -i whatsapp-dual_1.3.0_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -81,13 +83,13 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.1.5-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.3.0-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.1.5-x86_64.AppImage
+chmod +x WhatsAppDual-1.3.0-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.1.5-x86_64.AppImage
+./WhatsAppDual-1.3.0-x86_64.AppImage
 ```
 
 ### Option 3: Build from Source
@@ -243,12 +245,16 @@ whatsapp-dual/
 ├── src/
 │   ├── main/               # Electron main process
 │   │   ├── main.js         # Application entry point
+│   │   ├── security.js     # PIN, auto-lock, session protection
 │   │   ├── menu.js         # Application menu
 │   │   ├── tray.js         # System tray integration
-│   │   └── updater.js      # Auto-update functionality
+│   │   ├── updater.js      # Auto-update functionality
+│   │   ├── preload-settings.js  # Settings window preload
+│   │   └── preload-lock.js      # Lock screen preload
 │   ├── renderer/           # User interface
-│   │   ├── index.html      # Main window
 │   │   ├── settings.html   # Settings modal
+│   │   ├── lock.html       # Lock screen
+│   │   ├── lock-setup.html # PIN setup screen
 │   │   ├── styles/         # CSS stylesheets
 │   │   └── js/             # Renderer scripts
 │   └── shared/             # Shared modules
