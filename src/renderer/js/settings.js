@@ -32,7 +32,7 @@
 // Preload API Reference (no require() calls)
 // =============================================================================
 
-const api = window.electronAPI;
+const api = globalThis.electronAPI;
 
 // =============================================================================
 // Translation State
@@ -64,15 +64,21 @@ function t(key, fallback) {
   const parts = key.split('.');
   let current = translations;
   for (const part of parts) {
-    if (current == null || typeof current !== 'object') {
-      return fallback !== undefined ? fallback : key;
+    if (current == null || typeof current !== 'object' || !Object.hasOwn(current, part)) {
+      if (fallback !== undefined) {
+        return fallback;
+      }
+      return key;
     }
     current = current[part];
   }
   if (typeof current === 'string') {
     return current;
   }
-  return fallback !== undefined ? fallback : key;
+  if (fallback !== undefined) {
+    return fallback;
+  }
+  return key;
 }
 
 /**
@@ -86,7 +92,7 @@ function t(key, fallback) {
  */
 function applyTranslations() {
   document.querySelectorAll('[data-i18n]').forEach(element => {
-    const key = element.getAttribute('data-i18n');
+    const key = element.dataset.i18n;
     const translation = t(key);
     if (translation && translation !== key) {
       element.textContent = translation;
@@ -124,27 +130,25 @@ function applyThemeFromSetting(theme) {
     effective = 'dark';
   } else if (theme === 'light') {
     effective = 'light';
-  } else {
+  } else if (globalThis.matchMedia?.('(prefers-color-scheme: dark)').matches) {
     // "system" or any unrecognised value -> detect OS preference
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      effective = 'dark';
-    } else {
-      effective = 'light';
-    }
+    effective = 'dark';
+  } else {
+    effective = 'light';
   }
 
-  document.documentElement.setAttribute('data-theme', effective);
+  document.documentElement.dataset.theme = effective;
 
   // Listen for OS theme changes when following system preference
-  if (theme === 'system' && window.matchMedia) {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+  if (theme === 'system' && globalThis.matchMedia) {
+    const mq = globalThis.matchMedia('(prefers-color-scheme: dark)');
     // Remove any previous listener by replacing via a named handler stored on
     // the element (avoids leaking multiple listeners).
     if (applyThemeFromSetting._systemListener) {
       mq.removeEventListener('change', applyThemeFromSetting._systemListener);
     }
     applyThemeFromSetting._systemListener = (e) => {
-      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
     };
     mq.addEventListener('change', applyThemeFromSetting._systemListener);
   }
@@ -267,7 +271,7 @@ async function loadSettings() {
     // Behavior
     checkStartup.checked = settings.startWithSystem || false;
     checkMinimized.checked = settings.startMinimized || false;
-    checkTray.checked = settings.minimizeToTray !== undefined ? settings.minimizeToTray : true;
+    checkTray.checked = settings.minimizeToTray === undefined ? true : settings.minimizeToTray;
     selectDefaultAccount.value = settings.defaultAccount || 'personal';
 
     // Security - Load from main process
@@ -385,8 +389,15 @@ function updateAutolockTimeoutVisibility() {
 async function saveSettings() {
   try {
     // Build the settings object
+    // Detect current theme from document attribute
+    const currentTheme = document.documentElement.dataset.theme || 'system';
+    // Determine the setting value: if user changed it, use that; otherwise use stored
+    const themeSelect = document.getElementById('select-theme');
+    const themeValue = themeSelect ? themeSelect.value : currentTheme;
+
     const settingsData = {
       language: selectLanguage.value,
+      theme: themeValue,
       startWithSystem: checkStartup.checked,
       startMinimized: checkMinimized.checked,
       minimizeToTray: checkTray.checked,
@@ -419,11 +430,11 @@ async function saveSecuritySettings() {
     const securitySettings = {
       pinEnabled: checkPinEnabled.checked,
       autoLockEnabled: checkAutolock.checked,
-      autoLockTimeout: parseInt(selectAutolockTimeout.value, 10),
+      autoLockTimeout: Number.parseInt(selectAutolockTimeout.value, 10),
       lockOnSuspend: checkLockSuspend.checked,
       lockOnScreenLock: checkLockScreenlock.checked,
-      maxAttempts: parseInt(selectMaxAttempts.value, 10),
-      lockoutDuration: parseInt(selectLockoutDuration.value, 10),
+      maxAttempts: Number.parseInt(selectMaxAttempts.value, 10),
+      lockoutDuration: Number.parseInt(selectLockoutDuration.value, 10),
       deleteOnMaxAttempts: checkDeleteOnMax.checked
     };
 
@@ -580,14 +591,14 @@ btnRemovePin.addEventListener('click', async () => {
   try {
     const result = await api.security.removePIN(currentPin);
 
-    if (result && result.success) {
+    if (result?.success) {
       isPinSet = false;
       checkPinEnabled.checked = false;
       updatePinButtonsVisibility();
       updateSecuritySectionsVisibility();
     } else {
       // PIN was incorrect or removal failed
-      const msg = (result && result.message)
+      const msg = (result?.message)
         ? result.message
         : t('lock.incorrectPin', 'Incorrect PIN');
       alert(msg);

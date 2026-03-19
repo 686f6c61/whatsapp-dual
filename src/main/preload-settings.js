@@ -37,6 +37,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setupPIN: () => ipcRenderer.send('security:setupPIN'),
     lockNow: () => ipcRenderer.send('security:lockNow'),
     onPINSetupComplete: (callback) => {
+      // Remove any previous listener to prevent accumulation
+      ipcRenderer.removeAllListeners('security:pinSetupDone');
       ipcRenderer.once('security:pinSetupDone', () => callback());
     }
   },

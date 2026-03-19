@@ -91,7 +91,7 @@ function checkForUpdates(silent = true) {
  */
 function checkForUpdatesManual(mainWindow) {
   autoUpdater.checkForUpdates().then(result => {
-    if (!result || !result.updateInfo || result.updateInfo.version === require('electron').app.getVersion()) {
+    if (!result?.updateInfo || result.updateInfo.version === require('electron').app.getVersion()) {
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: i18n.t('updates.title', 'Updates'),

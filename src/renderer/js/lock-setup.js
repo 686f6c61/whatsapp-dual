@@ -31,12 +31,21 @@ function t(key, fallback) {
   const parts = key.split('.');
   let current = translations;
   for (const part of parts) {
-    if (current == null || typeof current !== 'object') {
-      return fallback !== undefined ? fallback : key;
+    if (current == null || typeof current !== 'object' || !Object.hasOwn(current, part)) {
+      if (fallback !== undefined) {
+        return fallback;
+      }
+      return key;
     }
     current = current[part];
   }
-  return typeof current === 'string' ? current : (fallback !== undefined ? fallback : key);
+  if (typeof current === 'string') {
+    return current;
+  }
+  if (fallback !== undefined) {
+    return fallback;
+  }
+  return key;
 }
 
 // =============================================================================
@@ -204,10 +213,10 @@ function updateStepUI() {
   if (setupSubtitle) {
     if (step === 1) {
       setupSubtitle.textContent = t('setup.enterNew', 'Enter a new PIN (4-8 digits)');
-      setupSubtitle.setAttribute('data-i18n', 'setup.enterNew');
+      setupSubtitle.dataset.i18n = 'setup.enterNew';
     } else {
       setupSubtitle.textContent = t('setup.confirmPin', 'Confirm your PIN');
-      setupSubtitle.setAttribute('data-i18n', 'setup.confirmPin');
+      setupSubtitle.dataset.i18n = 'setup.confirmPin';
     }
   }
 
@@ -223,14 +232,14 @@ function updateStepUI() {
  */
 async function savePIN() {
   try {
-    const result = await window.electronAPI.security.setPIN(currentPIN);
+    const result = await globalThis.electronAPI.security.setPIN(currentPIN);
 
-    if (result && result.success) {
+    if (result?.success) {
       showStatus(t('setup.pinSet', 'PIN set successfully!'), 'success');
 
       // Notify main process to continue to main app
       setTimeout(() => {
-        window.electronAPI.security.pinSetupComplete();
+        globalThis.electronAPI.security.pinSetupComplete();
       }, 500);
     } else {
       showStatus(t('setup.pinSetFailed', 'Failed to set PIN. Try again.'), 'error');
@@ -279,7 +288,7 @@ function clearStatus() {
  * Skip PIN setup.
  */
 function skipSetup() {
-  window.electronAPI.security.skipPINSetup();
+  globalThis.electronAPI.security.skipPINSetup();
 }
 
 // =============================================================================
@@ -289,10 +298,10 @@ function skipSetup() {
 // Numpad buttons
 numpadButtons.forEach(btn => {
   btn.addEventListener('click', () => {
-    const num = btn.getAttribute('data-num');
-    const action = btn.getAttribute('data-action');
+    const num = btn.dataset.num;
+    const action = btn.dataset.action;
 
-    if (num !== null) {
+    if (num !== undefined) {
       addDigit(num);
     } else if (action === 'clear') {
       removeDigit();
@@ -333,8 +342,8 @@ async function init() {
 
   // Q8 — Load translations
   try {
-    if (window.electronAPI && window.electronAPI.i18n) {
-      translations = await window.electronAPI.i18n.getTranslations() || {};
+    if (globalThis.electronAPI?.i18n) {
+      translations = await globalThis.electronAPI.i18n.getTranslations() || {};
     }
   } catch (error) {
     console.error('Error loading translations:', error);

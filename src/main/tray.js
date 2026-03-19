@@ -21,7 +21,7 @@
  */
 
 const { Tray, Menu, nativeImage, app } = require('electron');
-const path = require('path');
+const path = require('node:path');
 const i18n = require('../shared/i18n');
 
 // =============================================================================

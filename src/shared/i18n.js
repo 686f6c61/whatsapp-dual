@@ -29,8 +29,8 @@
  * const text = i18n.t('menu.personal', 'Personal');
  */
 
-const path = require('path');
-const fs = require('fs');
+const path = require('node:path');
+const fs = require('node:fs');
 
 // =============================================================================
 // Module State
@@ -140,7 +140,7 @@ function t(key, fallback) {
   let value = translations;
 
   for (const k of keys) {
-    if (value && typeof value === 'object' && k in value) {
+    if (value && typeof value === 'object' && Object.hasOwn(value, k)) {
       value = value[k];
     } else {
       return fallback || key;
@@ -189,9 +189,8 @@ function setLanguage(lang) {
  * const savedLang = store.get('language', 'en');
  * i18n.init(savedLang);
  */
-function init(savedLanguage) {
-  const lang = savedLanguage || 'en';
-  loadLanguage(lang);
+function init(savedLanguage = 'en') {
+  loadLanguage(savedLanguage);
 }
 
 /**
@@ -219,6 +218,7 @@ function getAvailableLanguages() {
       .filter(file => file.endsWith('.json'))
       .map(file => file.replace('.json', ''));
   } catch (error) {
+    console.error('Error reading locales directory:', error);
     return ['en', 'es'];
   }
 }

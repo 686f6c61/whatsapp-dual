@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-dual",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "WhatsApp Personal and Business in a single desktop app",
   "main": "src/main/main.js",
   "author": {
@@ -33,7 +33,9 @@
     "build:deb": "electron-builder --config build/electron-builder.yml --linux deb",
     "build:appimage": "electron-builder --config build/electron-builder.yml --linux AppImage",
     "build:snap": "electron-builder --config build/electron-builder.yml --linux snap",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "electron-store": "^8.2.0",
@@ -41,6 +43,7 @@
   },
   "devDependencies": {
     "electron": "^39.0.0",
-    "electron-builder": "^26.0.0"
+    "electron-builder": "^26.0.0",
+    "vitest": "^4.1.0"
   }
 }

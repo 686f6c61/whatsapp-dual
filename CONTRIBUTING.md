@@ -21,8 +21,8 @@ Before contributing, please take a moment to review this guide. Following these 
 
 To contribute to WhatsApp Dual, you'll need:
 
-- **Node.js** 18.x or higher
-- **npm** 9.x or higher
+- **Node.js** 22.x or higher
+- **npm** 10.x or higher
 - **Git** for version control
 - A **Linux** system for testing (Ubuntu 20.04+ recommended)
 
@@ -53,7 +53,9 @@ The following npm scripts are available for development:
 
 | Command | Description |
 |---------|-------------|
-| `npm start` | Start the app in development mode |
+| `npm start` | Start the app |
+| `npm run dev` | Start the app with logging enabled |
+| `npm test` | Run unit tests |
 | `npm run build:linux` | Build packages for Linux (.deb, .AppImage, .snap) |
 | `npm run build:deb` | Build only the .deb package |
 
@@ -65,27 +67,41 @@ Understanding the project structure will help you navigate the codebase efficien
 whatsapp-dual/
 ├── src/
 │   ├── main/                   # Electron main process
-│   │   ├── main.js             # Application entry point, window management
+│   │   ├── main.js             # Orchestrator (lifecycle, wiring)
+│   │   ├── window-manager.js   # Window creation and state
+│   │   ├── view-manager.js     # WebContentsView management
+│   │   ├── ipc-handlers.js     # IPC communication with renderers
+│   │   ├── security.js         # Security facade (re-exports sub-modules)
+│   │   ├── security/           # Security sub-modules
+│   │   │   ├── pin-manager.js        # PIN hashing, verification, lockout
+│   │   │   ├── lock-controller.js    # Auto-lock timer, power events
+│   │   │   └── session-protection.js # File permissions, integrity, secure delete
 │   │   ├── menu.js             # Application menu creation
 │   │   ├── tray.js             # System tray integration
-│   │   └── updater.js          # Auto-update functionality
+│   │   ├── updater.js          # Auto-update functionality
+│   │   ├── preload-settings.js # Settings window preload
+│   │   └── preload-lock.js     # Lock screen preload
 │   │
 │   ├── renderer/               # User interface (renderer process)
-│   │   ├── index.html          # Main window HTML
-│   │   ├── settings.html       # Settings modal HTML
+│   │   ├── settings.html       # Settings modal
+│   │   ├── lock.html           # Lock screen
+│   │   ├── lock-setup.html     # PIN setup screen
 │   │   ├── js/
-│   │   │   ├── renderer.js     # Main window logic
 │   │   │   ├── settings.js     # Settings window logic
-│   │   │   ├── i18n.js         # Renderer i18n manager
-│   │   │   └── theme.js        # Theme manager
+│   │   │   ├── lock.js         # Lock screen logic
+│   │   │   └── lock-setup.js   # PIN setup logic
 │   │   └── styles/
-│   │       ├── main.css        # Main stylesheet
 │   │       ├── settings.css    # Settings styles
-│   │       └── themes/         # Theme CSS variables
+│   │       ├── lock.css        # Lock screen styles
+│   │       └── lock-setup.css  # PIN setup styles
 │   │
 │   └── shared/                 # Shared between main and renderer
 │       ├── constants.js        # Application constants
 │       └── i18n.js             # Main process i18n
+│
+├── tests/                      # Unit tests (Vitest)
+│   ├── setup.js                # Test setup (Electron mocks)
+│   └── security.test.js        # Security module tests
 │
 ├── locales/                    # Translation files
 │   ├── en.json                 # English translations
@@ -107,10 +123,13 @@ whatsapp-dual/
 
 | File | Purpose |
 |------|---------|
-| `src/main/main.js` | Creates window, manages BrowserViews, handles IPC |
-| `src/shared/constants.js` | Defines session partitions, shortcuts, window config |
-| `src/renderer/js/renderer.js` | Handles dropdown menu and account switching UI |
-| `build/electron-builder.yml` | Configures package building and publishing |
+| `src/main/main.js` | Orchestrator: lifecycle, store init, wires modules together |
+| `src/main/window-manager.js` | Creates and manages all windows (main, settings, lock) |
+| `src/main/view-manager.js` | WebContentsView creation, account switching, URL validation |
+| `src/main/ipc-handlers.js` | IPC handlers for settings, i18n, and security operations |
+| `src/main/security.js` | Security facade: re-exports PIN, lock, and session sub-modules |
+| `src/shared/constants.js` | Session partitions, window config |
+| `build/electron-builder.yml` | Package building and publishing config |
 
 ## Code Style Guidelines
 
@@ -159,7 +178,6 @@ All source files should include a header comment:
  * @author 686f6c61
  * @license MIT
  * @repository https://github.com/686f6c61/whatsapp-dual
- * @version 1.0.3
  *
  * [Detailed description of the file's purpose]
  */

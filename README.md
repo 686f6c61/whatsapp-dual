@@ -68,10 +68,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.3.0_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.4.0_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.3.0_amd64.deb
+sudo dpkg -i whatsapp-dual_1.4.0_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -83,13 +83,13 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.3.0-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.4.0-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.3.0-x86_64.AppImage
+chmod +x WhatsAppDual-1.4.0-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.3.0-x86_64.AppImage
+./WhatsAppDual-1.4.0-x86_64.AppImage
 ```
 
 ### Option 3: Build from Source
@@ -244,8 +244,15 @@ For developers interested in contributing or understanding the codebase, WhatsAp
 whatsapp-dual/
 ├── src/
 │   ├── main/               # Electron main process
-│   │   ├── main.js         # Application entry point
-│   │   ├── security.js     # PIN, auto-lock, session protection
+│   │   ├── main.js         # Orchestrator (lifecycle, wiring)
+│   │   ├── window-manager.js    # Window creation and state
+│   │   ├── view-manager.js      # WebContentsView management
+│   │   ├── ipc-handlers.js      # IPC communication with renderers
+│   │   ├── security.js          # Security facade
+│   │   ├── security/            # Security sub-modules
+│   │   │   ├── pin-manager.js        # PIN hashing, verification, lockout
+│   │   │   ├── lock-controller.js    # Auto-lock timer, power events
+│   │   │   └── session-protection.js # File permissions, integrity, secure delete
 │   │   ├── menu.js         # Application menu
 │   │   ├── tray.js         # System tray integration
 │   │   ├── updater.js      # Auto-update functionality
@@ -260,6 +267,7 @@ whatsapp-dual/
 │   └── shared/             # Shared modules
 │       ├── constants.js    # Application constants
 │       └── i18n.js         # Internationalization
+├── tests/                  # Unit tests (Vitest)
 ├── locales/                # Translation files
 ├── assets/                 # Icons and images
 ├── build/                  # Build configuration
@@ -268,14 +276,15 @@ whatsapp-dual/
 
 ### Running in Development
 
-Development mode enables hot-reloading and provides access to developer tools for debugging.
-
 ```bash
 # Install dependencies
 npm install
 
-# Start in development mode
+# Start the app
 npm start
+
+# Run unit tests
+npm test
 ```
 
 ## Contributing

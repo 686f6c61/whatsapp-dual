@@ -43,13 +43,16 @@ const security = require('./security');
  * - The language setting changes
  * - An update becomes available
  *
- * @param {Function} switchAccountFn - Callback to switch WhatsApp accounts
- * @param {Function} openSettingsFn - Callback to open settings window
- * @param {Function} openAboutFn - Callback to open about dialog
- * @param {BrowserWindow} mainWindow - Reference to the main window (for dialogs)
+ * @param {object} options - Menu configuration
+ * @param {Function} options.switchAccount - Callback to switch WhatsApp accounts
+ * @param {Function} options.openSettings - Callback to open settings window
+ * @param {Function} options.openAbout - Callback to open about dialog
+ * @param {BrowserWindow} options.mainWindow - Reference to the main window
+ * @param {Function} options.quit - Callback to quit the application
+ * @param {Function} options.reload - Callback to reload the active view
  * @returns {void}
  */
-function createMenu(switchAccountFn, openSettingsFn, openAboutFn, mainWindow, quitFn, reloadFn) {
+function createMenu({ switchAccount: switchAccountFn, openSettings: openSettingsFn, openAbout: openAboutFn, mainWindow, quit: quitFn, reload: reloadFn }) {
   // Add visual indicator to Help menu when update is available
   const helpLabel = updater.isUpdateAvailable()
     ? `${i18n.t('menu.help', 'Help')} (!)`

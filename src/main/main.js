@@ -6,150 +6,128 @@
  * @repository https://github.com/686f6c61/whatsapp-dual
  *
  * This is the main Electron process that orchestrates the entire application.
- * It creates and manages the main window with two isolated BrowserViews,
+ * It creates and manages the main window with two isolated WebContentsViews,
  * one for WhatsApp Personal and one for WhatsApp Business.
  *
- * Key responsibilities:
- * - Window creation and lifecycle management
- * - BrowserView management for dual WhatsApp sessions
- * - Account switching between Personal and Business
- * - File download handling for both sessions
- * - System tray integration
- * - Global keyboard shortcuts
- * - IPC communication with renderer processes
- * - Auto-update checking
- *
  * Architecture:
- * The app uses Electron's BrowserView with isolated session partitions
- * (persist:whatsapp-personal and persist:whatsapp-business) to ensure
- * complete separation between the two WhatsApp accounts. Each partition
- * maintains its own cookies, localStorage, and session data.
+ * The app is split into focused modules:
+ * - window-manager.js: Window creation and lifecycle (main, settings, lock)
+ * - view-manager.js:   WebContentsView management and account switching
+ * - ipc-handlers.js:   All IPC communication with renderer processes
+ *
+ * This file (main.js) is the glue layer responsible for:
+ * - Singleton store initialization and i18n init
+ * - Security initialization
+ * - App lifecycle events (ready, quit, activate, single instance)
+ * - Wiring the modules together
  */
 
-const { app, BrowserWindow, WebContentsView, ipcMain, dialog, shell } = require('electron');
-const path = require('path');
+const { app, BrowserWindow } = require('electron');
 const Store = require('electron-store');
-const { WHATSAPP_URL, ACCOUNTS, WINDOW_CONFIG } = require('../shared/constants');
-const { createTray, destroyTray, updateContextMenu, setNotificationState } = require('./tray');
+const { ACCOUNTS } = require('../shared/constants');
+const { createTray, destroyTray, updateContextMenu } = require('./tray');
 const { createMenu } = require('./menu');
 const i18n = require('../shared/i18n');
 const updater = require('./updater');
 const security = require('./security');
+const windowManager = require('./window-manager');
+const viewManager = require('./view-manager');
+const { registerIPCHandlers } = require('./ipc-handlers');
 
 // =============================================================================
-// Configuration and State
+// Configuration and State (singletons)
 // =============================================================================
 
-/** @type {Store} Persistent storage for user preferences */
+/** @type {Store} Persistent storage for user preferences (singleton) */
 const store = new Store();
+security.initStore(store);
 
 // Initialize i18n with saved language preference
 const savedLanguage = store.get('language', 'en');
 i18n.init(savedLanguage);
 
-/** @type {BrowserWindow|null} Main application window */
-let mainWindow = null;
-
-/** @type {BrowserWindow|null} Settings modal window */
-let settingsWindow = null;
-
-/** @type {Object.<string, WebContentsView>} WebContentsViews for each WhatsApp account */
-let views = {};
-
-/** @type {string} Currently active account ID */
-let currentAccount = ACCOUNTS.PERSONAL.id;
-
-/** @type {boolean} Flag to track if app is in quitting state */
-let isQuitting = false;
-
-/** @type {boolean} Flag to track if app is showing lock screen */
-let isShowingLockScreen = false;
-
-/** @type {BrowserWindow|null} Lock screen window */
-let lockWindow = null;
-
-/** Sets quitting flag and exits the app. Used by menu and tray. */
-const quitApp = () => { isQuitting = true; app.quit(); };
-
-/** Reloads the active WebContentsView. Used by menu. */
-const reloadActiveView = () => {
-  const view = views[currentAccount];
-  if (view && view.webContents) {
-    view.webContents.reload();
-  }
-};
-
-/**
- * Custom User-Agent string to avoid WhatsApp Web blocking.
- * WhatsApp Web may block requests from Electron's default user agent.
- * @constant {string}
- */
-const USER_AGENT = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome} Safari/537.36`;
+/** @type {boolean} Tracks whether security IPC handlers are registered */
+let securityInitialized = false;
 
 // =============================================================================
-// Window Management
+// Helper: Rebuild Menus
 // =============================================================================
 
 /**
- * Creates the main application window and initializes all components.
- *
- * This function is the primary initialization point for the UI. It:
- * 1. Creates the main BrowserWindow with configured dimensions
- * 2. Sets up the application menu with i18n support
- * 3. Initializes the auto-updater
- * 4. Creates BrowserViews for both WhatsApp accounts
- * 5. Sets up the system tray
- * 6. Registers window event handlers
- *
- * @returns {void}
+ * Rebuilds application menu and tray context menu.
+ * Called after language change, update detection, etc.
  */
-function createWindow() {
-  const defaultAccount = store.get('defaultAccount', ACCOUNTS.PERSONAL.id);
-  const startMinimized = store.get('startMinimized', false);
-
-  mainWindow = new BrowserWindow({
-    width: WINDOW_CONFIG.width,
-    height: WINDOW_CONFIG.height,
-    minWidth: WINDOW_CONFIG.minWidth,
-    minHeight: WINDOW_CONFIG.minHeight,
-    title: 'WhatsApp Dual',
-    icon: path.join(__dirname, '../../assets/icons/icon.png'),
-    show: !startMinimized,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true
-    }
+function rebuildMenus() {
+  const mainWindow = windowManager.getMainWindow();
+  createMenu({
+    switchAccount: (id) => viewManager.switchAccount(id, windowManager.getMainWindow()),
+    openSettings: () => windowManager.createSettingsWindow(),
+    openAbout: () => windowManager.createAboutWindow(app),
+    mainWindow,
+    quit: () => windowManager.quitApp(app),
+    reload: () => viewManager.reloadActiveView()
   });
+  updateContextMenu();
+}
 
-  // Create custom menu
-  createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
+// =============================================================================
+// IPC Handler Registration (once, before app.whenReady)
+// =============================================================================
+
+registerIPCHandlers({
+  store,
+  windowManager,
+  viewManager,
+  security,
+  rebuildMenus
+});
+
+// =============================================================================
+// Window Initialization
+// =============================================================================
+
+/**
+ * Creates the main window and initializes all components.
+ * Called from app.whenReady and app.on('activate').
+ */
+function initializeWindow() {
+  const defaultAccount = store.get('defaultAccount', ACCOUNTS.PERSONAL.id);
+
+  // Create main window
+  const mainWindow = windowManager.createWindow({ store });
+
+  // Build menus
+  rebuildMenus();
 
   // Set up updater callback to rebuild menu when update is found
-  updater.setUpdateStatusCallback((hasUpdate, info) => {
-    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
-    updateContextMenu();
+  updater.setUpdateStatusCallback(() => {
+    rebuildMenus();
   });
 
   // Check for updates on startup (silent)
   updater.checkForUpdates(true);
 
-  // Create BrowserViews for each WhatsApp account
-  createWhatsAppViews();
+  // Create WebContentsViews for each WhatsApp account
+  viewManager.createWhatsAppViews();
 
   // Set initial view based on default account setting
-  switchAccount(defaultAccount);
+  viewManager.switchAccount(defaultAccount, mainWindow);
 
-  // Create system tray (B1/B2 fix — pass switchAccount and quitApp callbacks)
-  createTray(mainWindow, switchAccount, quitApp);
+  // Create system tray
+  createTray(
+    mainWindow,
+    (id) => viewManager.switchAccount(id, windowManager.getMainWindow()),
+    () => windowManager.quitApp(app)
+  );
 
   // Handle window resize
   mainWindow.on('resize', () => {
-    updateViewBounds();
+    viewManager.updateViewBounds(windowManager.getMainWindow());
   });
 
-  // Update bounds and tray menu when window is shown (Q4 — deduplicated)
+  // Update bounds and tray menu when window is shown (Q4)
   mainWindow.on('show', () => {
-    updateViewBounds();
+    viewManager.updateViewBounds(windowManager.getMainWindow());
     updateContextMenu();
   });
 
@@ -157,15 +135,11 @@ function createWindow() {
   mainWindow.on('close', (event) => {
     const minimizeToTray = store.get('minimizeToTray', true);
 
-    if (!isQuitting && minimizeToTray) {
+    if (!windowManager.getIsQuitting() && minimizeToTray) {
       event.preventDefault();
       mainWindow.hide();
       updateContextMenu();
     }
-  });
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
   });
 
   mainWindow.on('hide', () => {
@@ -174,439 +148,13 @@ function createWindow() {
 }
 
 // =============================================================================
-// BrowserView Management
+// Security Initialization
 // =============================================================================
-
-/**
- * Checks if either WhatsApp view has unread messages.
- *
- * WhatsApp Web shows unread count in the page title as "(X) WhatsApp"
- * where X is the number of unread messages/chats.
- *
- * @returns {void}
- */
-function checkForUnreadMessages() {
-  const unreadPattern = /^\(\d+\)/;
-  let hasUnread = false;
-
-  // Check both views for unread messages
-  Object.values(views).forEach(view => {
-    if (view && view.webContents) {
-      const title = view.webContents.getTitle();
-      if (unreadPattern.test(title)) {
-        hasUnread = true;
-      }
-    }
-  });
-
-  setNotificationState(hasUnread);
-}
-
-/**
- * Checks if a URL is a WhatsApp internal URL.
- *
- * @param {string} url - The URL to check
- * @returns {boolean} True if the URL is a WhatsApp URL
- */
-function isWhatsAppURL(url) {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.endsWith('whatsapp.com') || urlObj.hostname.endsWith('whatsapp.net');
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Checks if a URL scheme is allowed for opening externally.
- * Only http: and https: are permitted (S8 — blocks file://, javascript:, etc.).
- *
- * @param {string} url - The URL to check
- * @returns {boolean} True if scheme is allowed
- */
-function isAllowedScheme(url) {
-  try {
-    const urlObj = new URL(url);
-    return urlObj.protocol === 'https:' || urlObj.protocol === 'http:';
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Configures external link handling for a BrowserView's webContents.
- *
- * This ensures that:
- * - Links to WhatsApp domains open within the app
- * - All other links with allowed schemes open in the user's default browser
- * - Links with disallowed schemes (file://, javascript://) are blocked
- *
- * @param {Electron.WebContents} webContents - The webContents to configure
- * @returns {void}
- */
-function setupExternalLinkHandler(webContents) {
-  // Handle new window requests (target="_blank" links)
-  webContents.setWindowOpenHandler(({ url }) => {
-    if (!isWhatsAppURL(url) && isAllowedScheme(url)) {
-      shell.openExternal(url).catch(err => console.error('Error opening external URL:', err));
-    }
-    return { action: 'deny' };
-  });
-
-  // Handle navigation within the same window
-  webContents.on('will-navigate', (event, url) => {
-    if (!isWhatsAppURL(url)) {
-      event.preventDefault();
-      if (isAllowedScheme(url)) {
-        shell.openExternal(url).catch(err => console.error('Error opening external URL:', err));
-      }
-    }
-  });
-}
-
-/**
- * Configures file download handling for a BrowserView's session.
- *
- * Attaches a 'will-download' listener to the session so that file downloads
- * from WhatsApp Web (images, documents, audio, video) are handled properly.
- * By not calling item.setSavePath(), Electron shows a native "Save As" dialog
- * that lets the user choose where to save the file.
- *
- * @param {Electron.WebContents} webContents - The webContents whose session to configure
- * @returns {void}
- */
-function setupDownloadHandler(webContents) {
-  webContents.session.on('will-download', (event, item) => {
-    item.on('updated', (event, state) => {
-      if (state === 'interrupted') {
-        console.log(`Download interrupted: ${item.getFilename()}`);
-      }
-    });
-
-    item.once('done', (event, state) => {
-      if (state === 'completed') {
-        console.log(`Download completed: ${item.getFilename()}`);
-      } else {
-        console.log(`Download failed (${state}): ${item.getFilename()}`);
-      }
-    });
-  });
-}
-
-/**
- * Creates a single isolated BrowserView for a WhatsApp account.
- *
- * @param {Object} accountConfig - Account configuration from ACCOUNTS
- * @param {string} accountConfig.partition - Session partition name
- * @returns {BrowserView} The configured BrowserView
- */
-function createAccountView(accountConfig) {
-  const view = new WebContentsView({
-    webPreferences: {
-      partition: accountConfig.partition,
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true
-    }
-  });
-
-  view.webContents.setUserAgent(USER_AGENT);
-  view.webContents.loadURL(WHATSAPP_URL);
-  setupExternalLinkHandler(view.webContents);
-  setupDownloadHandler(view.webContents);
-
-  view.webContents.on('page-title-updated', () => {
-    checkForUnreadMessages();
-  });
-
-  return view;
-}
-
-/**
- * Creates isolated BrowserViews for Personal and Business WhatsApp accounts.
- *
- * Each BrowserView uses a separate session partition to ensure complete
- * isolation between accounts (cookies, localStorage, login sessions).
- *
- * @returns {void}
- */
-function createWhatsAppViews() {
-  views.personal = createAccountView(ACCOUNTS.PERSONAL);
-  views.business = createAccountView(ACCOUNTS.BUSINESS);
-}
-
-/**
- * Updates the bounds of all BrowserViews to match the window size.
- *
- * Called whenever the window is resized to ensure BrowserViews
- * fill the entire content area.
- *
- * @returns {void}
- */
-function updateViewBounds() {
-  if (!mainWindow) return;
-
-  const bounds = mainWindow.getContentBounds();
-
-  const viewBounds = {
-    x: 0,
-    y: 0,
-    width: bounds.width,
-    height: bounds.height
-  };
-
-  Object.values(views).forEach(view => {
-    view.setBounds(viewBounds);
-  });
-}
-
-// =============================================================================
-// Account Switching
-// =============================================================================
-
-/**
- * Switches the active WhatsApp account view.
- *
- * This function handles the core functionality of switching between
- * Personal and Business accounts by:
- * 1. Removing the currently visible BrowserView
- * 2. Adding the target account's BrowserView
- * 3. Updating the window title to reflect the active account
- *
- * @param {string} accountId - The account to switch to ('personal' or 'business')
- * @returns {void}
- */
-function switchAccount(accountId) {
-  if (!mainWindow || !views[accountId]) return;
-
-  currentAccount = accountId;
-
-  // Remove all current views
-  mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
-
-  // Add new view
-  mainWindow.contentView.addChildView(views[accountId]);
-  updateViewBounds();
-
-  // Update window title
-  const accountName = accountId === 'personal' ? 'Personal' : 'Business';
-  mainWindow.setTitle(`WhatsApp Dual - ${accountName}`);
-}
-
-// =============================================================================
-// Secondary Windows
-// =============================================================================
-
-/**
- * Creates and displays the Settings window.
- *
- * The settings window is a modal dialog that allows users to configure:
- * - Language preference
- * - Default account (Personal/Business)
- * - Minimize to tray behavior
- * - Start with system
- * - Start minimized
- *
- * Only one settings window can be open at a time.
- *
- * @returns {void}
- */
-function createSettingsWindow() {
-  // S3 — Block settings while lock screen is showing
-  if (isShowingLockScreen) return;
-
-  if (settingsWindow) {
-    settingsWindow.focus();
-    return;
-  }
-
-  settingsWindow = new BrowserWindow({
-    width: 480,
-    height: 700,
-    minWidth: 400,
-    minHeight: 600,
-    parent: mainWindow,
-    modal: true,
-    title: 'Settings',
-    icon: path.join(__dirname, '../../assets/icons/icon.png'),
-    resizable: true,
-    minimizable: false,
-    maximizable: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      preload: path.join(__dirname, 'preload-settings.js')
-    }
-  });
-
-  settingsWindow.setMenuBarVisibility(false);
-  settingsWindow.loadFile(path.join(__dirname, '../renderer/settings.html'));
-
-  settingsWindow.on('closed', () => {
-    settingsWindow = null;
-  });
-}
-
-/**
- * Displays the About dialog with application information.
- *
- * Shows a native message box with:
- * - Application version
- * - Description
- * - Author information
- * - License
- * - Repository link
- *
- * All text is localized based on the current language setting.
- *
- * @returns {void}
- */
-function createAboutWindow() {
-  const appVersion = app.getVersion();
-
-  dialog.showMessageBox(mainWindow, {
-    type: 'info',
-    title: i18n.t('about.title', 'About WhatsApp Dual'),
-    message: 'WhatsApp Dual',
-    detail: `${i18n.t('about.version', 'Version')}: ${appVersion}\n\n${i18n.t('about.description', 'Use WhatsApp Personal and Business in a single app.')}\n\n${i18n.t('about.author', 'Author')}: 686f6c61\n${i18n.t('about.license', 'License')}: MIT\n\nhttps://github.com/686f6c61/whatsapp-dual`,
-    buttons: [i18n.t('about.ok', 'OK')],
-    icon: path.join(__dirname, '../../assets/icons/icon.png')
-  });
-}
-
-// =============================================================================
-// Security - Lock Screen
-// =============================================================================
-
-/**
- * Shows the lock screen window.
- *
- * Creates a fullscreen modal window that requires PIN entry to unlock.
- * This is called on app start (if PIN is enabled), on auto-lock timeout,
- * and when the system is suspended/locked.
- *
- * @returns {void}
- */
-function showLockScreen() {
-  if (lockWindow) {
-    lockWindow.focus();
-    return;
-  }
-
-  isShowingLockScreen = true;
-
-  // Hide main window views
-  if (mainWindow) {
-    mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
-  }
-
-  lockWindow = new BrowserWindow({
-    width: 400,
-    height: 600,
-    parent: mainWindow,
-    modal: true,
-    frame: false,
-    resizable: false,
-    movable: true,
-    minimizable: false,
-    maximizable: false,
-    closable: false,
-    alwaysOnTop: true,
-    title: 'WhatsApp Dual - Locked',
-    icon: path.join(__dirname, '../../assets/icons/icon.png'),
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      preload: path.join(__dirname, 'preload-lock.js')
-    }
-  });
-
-  lockWindow.loadFile(path.join(__dirname, '../renderer/lock.html'));
-
-  lockWindow.on('closed', () => {
-    lockWindow = null;
-  });
-}
-
-/**
- * Hides the lock screen and shows the main app.
- *
- * Called after successful PIN verification.
- *
- * @returns {void}
- */
-function hideLockScreen() {
-  isShowingLockScreen = false;
-
-  if (lockWindow) {
-    lockWindow.close();
-    lockWindow = null;
-  }
-
-  // Restore main window view
-  if (mainWindow) {
-    // Re-add the view for current account
-    const view = views[currentAccount];
-    if (view) {
-      mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
-      mainWindow.contentView.addChildView(view);
-      updateViewBounds();
-    }
-    mainWindow.show();
-    mainWindow.focus();
-  }
-}
-
-/**
- * Shows the PIN setup screen for first-time configuration.
- *
- * @returns {void}
- */
-function showPINSetupScreen() {
-  if (lockWindow) {
-    lockWindow.close();
-  }
-
-  lockWindow = new BrowserWindow({
-    width: 360,
-    height: 580,
-    parent: mainWindow,
-    modal: false,
-    frame: false,
-    resizable: false,
-    movable: true,
-    minimizable: false,
-    maximizable: false,
-    closable: true,
-    title: 'WhatsApp Dual - Setup PIN',
-    icon: path.join(__dirname, '../../assets/icons/icon.png'),
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      preload: path.join(__dirname, 'preload-lock.js')
-    }
-  });
-
-  lockWindow.loadFile(path.join(__dirname, '../renderer/lock-setup.html'));
-
-  lockWindow.on('closed', () => {
-    lockWindow = null;
-    isShowingLockScreen = false;
-  });
-}
-
-/** @type {boolean} Tracks whether security IPC handlers are registered */
-let securityInitialized = false;
 
 /**
  * Initialize security features.
  *
  * Sets up auto-lock, file protection, and integrity checks.
- *
- * @returns {void}
  */
 function initializeSecurity() {
   // Guard against double-registering IPC handlers (Q12)
@@ -614,9 +162,9 @@ function initializeSecurity() {
     securityInitialized = true;
     // Register IPC handlers with window references for sender validation (S5)
     security.registerIPCHandlers(() => ({
-      settings: settingsWindow,
-      lock: lockWindow,
-      main: mainWindow
+      settings: windowManager.getSettingsWindow(),
+      lock: windowManager.getLockWindow(),
+      main: windowManager.getMainWindow()
     }));
   }
 
@@ -629,190 +177,35 @@ function initializeSecurity() {
     security.showIntegrityWarning();
   }
 
+  const mainWindow = windowManager.getMainWindow();
+
   // Initialize auto-lock with callbacks
   security.initAutoLock(
     mainWindow,
     () => {
       // onLock callback
-      showLockScreen();
+      windowManager.showLockScreen({
+        removeAllViews: () => viewManager.removeAllViews(windowManager.getMainWindow())
+      });
     },
     () => {
       // onUnlock callback
-      hideLockScreen();
+      windowManager.hideLockScreen({
+        restoreCurrentView: () => viewManager.restoreCurrentView(windowManager.getMainWindow())
+      });
     }
   );
 }
 
 // =============================================================================
-// Keyboard Shortcuts
-// =============================================================================
-
-// Q1 — Global shortcuts removed; menu accelerators provide the same
-// functionality without conflicting with other applications.
-
-// =============================================================================
-// IPC Communication Handlers
-// =============================================================================
-
-/**
- * IPC handlers for communication between main and renderer processes.
- *
- * These handlers respond to messages from the renderer process (settings window)
- * to perform actions that require main process privileges.
- */
-
-/** Close settings window from renderer request */
-ipcMain.on('close-settings', () => {
-  if (settingsWindow) {
-    settingsWindow.close();
-  }
-});
-
-// =============================================================================
-// Settings Window IPC Handlers (S1 — contextIsolation support)
-// =============================================================================
-
-/** Return all settings to the settings window */
-ipcMain.handle('settings:getAll', () => {
-  return {
-    language: store.get('language', 'en'),
-    theme: store.get('theme', 'system'),
-    startWithSystem: store.get('startWithSystem', false),
-    startMinimized: store.get('startMinimized', false),
-    minimizeToTray: store.get('minimizeToTray', true),
-    defaultAccount: store.get('defaultAccount', 'personal')
-  };
-});
-
-/** Save settings from the settings window */
-ipcMain.handle('settings:save', (event, settings) => {
-  if (typeof settings !== 'object' || settings === null) return false;
-
-  const availableLanguages = i18n.getAvailableLanguages();
-  const validAccounts = ['personal', 'business'];
-
-  // Validate and persist each setting
-  if (settings.language !== undefined) {
-    if (typeof settings.language !== 'string' || !availableLanguages.includes(settings.language)) return false;
-    store.set('language', settings.language);
-  }
-  if (settings.startWithSystem !== undefined) {
-    if (typeof settings.startWithSystem !== 'boolean') return false;
-    store.set('startWithSystem', settings.startWithSystem);
-  }
-  if (settings.startMinimized !== undefined) {
-    if (typeof settings.startMinimized !== 'boolean') return false;
-    store.set('startMinimized', settings.startMinimized);
-  }
-  if (settings.minimizeToTray !== undefined) {
-    if (typeof settings.minimizeToTray !== 'boolean') return false;
-    store.set('minimizeToTray', settings.minimizeToTray);
-  }
-  if (settings.defaultAccount !== undefined) {
-    if (typeof settings.defaultAccount !== 'string' || !validAccounts.includes(settings.defaultAccount)) return false;
-    store.set('defaultAccount', settings.defaultAccount);
-  }
-
-  // Apply language change
-  if (settings.language) {
-    i18n.setLanguage(settings.language);
-    createMenu(switchAccount, createSettingsWindow, createAboutWindow, mainWindow, quitApp, reloadActiveView);
-    updateContextMenu();
-  }
-
-  // Apply auto-start settings
-  if (settings.startWithSystem !== undefined) {
-    app.setLoginItemSettings({
-      openAtLogin: settings.startWithSystem,
-      openAsHidden: settings.startMinimized || false
-    });
-  }
-
-  return true;
-});
-
-// =============================================================================
-// i18n IPC Handlers (S1 — contextIsolation support)
-// =============================================================================
-
-/** Return translations for the current language */
-ipcMain.handle('i18n:getTranslations', () => {
-  return i18n.getAllTranslations();
-});
-
-/** Return current language code */
-ipcMain.handle('i18n:getLanguage', () => {
-  return i18n.getLanguage();
-});
-
-/** Return list of available language codes */
-ipcMain.handle('i18n:getAvailableLanguages', () => {
-  return i18n.getAvailableLanguages();
-});
-
-/** Return translations for a specific language (for preview) */
-ipcMain.handle('i18n:getTranslationsForLanguage', (event, lang) => {
-  // Load the requested language, get its translations, then restore current
-  const currentLang = i18n.getLanguage();
-  i18n.loadLanguage(lang);
-  const translations = i18n.getAllTranslations();
-  // Restore original language
-  i18n.loadLanguage(currentLang);
-  return translations;
-});
-
-// =============================================================================
-// Security IPC Handlers
-// =============================================================================
-
-/** Handle PIN setup completion - close setup window and notify settings (B5 fix) */
-ipcMain.on('security:pinSetupComplete', () => {
-  hideLockScreen();
-  // Notify settings window that PIN setup is done
-  if (settingsWindow && !settingsWindow.isDestroyed()) {
-    settingsWindow.webContents.send('security:pinSetupDone');
-  }
-});
-
-/** Handle skip PIN setup - close setup window and show main app */
-ipcMain.on('security:skipPINSetup', () => {
-  hideLockScreen();
-});
-
-/** Handle manual lock request from settings or menu */
-ipcMain.on('security:lockNow', () => {
-  if (security.isPINEnabled()) {
-    security.lockApp();
-  }
-});
-
-/** Handle opening PIN setup from settings */
-ipcMain.on('security:setupPIN', () => {
-  showPINSetupScreen();
-});
-
-// =============================================================================
-// Application Lifecycle
-// =============================================================================
-
-// =============================================================================
 // Single Instance Lock
 // =============================================================================
 
-/**
- * Ensures only one instance of the application runs at a time.
- * If another instance is already running, focus the existing window
- * instead of opening a new one.
- */
 const gotTheLock = app.requestSingleInstanceLock();
 
-if (!gotTheLock) {
-  // Another instance is already running, quit this one
-  app.quit();
-} else {
-  // This is the primary instance
+if (gotTheLock) {
   app.on('second-instance', () => {
-    // Someone tried to run a second instance, focus our window instead
+    const mainWindow = windowManager.getMainWindow();
     if (mainWindow) {
       if (!mainWindow.isVisible()) {
         mainWindow.show();
@@ -823,41 +216,43 @@ if (!gotTheLock) {
       mainWindow.focus();
     }
   });
+} else {
+  app.quit();
 }
+
+// =============================================================================
+// Application Lifecycle
+// =============================================================================
 
 /**
  * Application initialization.
- *
  * Called when Electron has finished initialization and is ready
- * to create browser windows. This is the entry point for the UI.
+ * to create browser windows.
  */
 app.whenReady().then(() => {
-  createWindow();
+  initializeWindow();
   initializeSecurity();
 
   // Show lock screen on startup if PIN is enabled
   if (security.isPINEnabled()) {
-    showLockScreen();
+    windowManager.showLockScreen({
+      removeAllViews: () => viewManager.removeAllViews(windowManager.getMainWindow())
+    });
   }
 });
 
 /**
  * Pre-quit handler.
- *
- * Sets the quitting flag to prevent the minimize-to-tray behavior
- * from blocking the actual quit operation. Also saves session hashes
- * for integrity verification on next startup.
+ * Sets the quitting flag and saves session hashes.
  */
 app.on('before-quit', () => {
-  isQuitting = true;
+  windowManager.setIsQuitting(true);
   security.saveSessionHashes();
 });
 
 /**
  * Handle all windows being closed.
- *
- * On Linux/Windows, quit the app when all windows are closed.
- * On macOS (darwin), the app typically stays active until explicitly quit.
+ * On Linux/Windows, quit the app. On macOS, the app stays active.
  */
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -868,24 +263,23 @@ app.on('window-all-closed', () => {
 
 /**
  * Handle app activation (macOS).
- *
  * Re-create the window if it was closed but the app is still running.
- * This is standard macOS behavior.
  */
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
+    initializeWindow();
     initializeSecurity();
-  } else if (mainWindow) {
-    mainWindow.show();
+  } else {
+    const mainWindow = windowManager.getMainWindow();
+    if (mainWindow) {
+      mainWindow.show();
+    }
   }
 });
 
 /**
  * Cleanup before app exit.
- *
- * Unregisters all global shortcuts and destroys the system tray
- * to ensure clean shutdown.
+ * Destroys the system tray for clean shutdown.
  */
 app.on('will-quit', () => {
   destroyTray();

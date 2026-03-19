@@ -5,6 +5,44 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-03-19
+
+### Security
+
+- **Path traversal fix**: `i18n:getTranslationsForLanguage` now validates the `lang` parameter with a strict regex and verifies the resolved path stays within the locales directory
+- **Sandbox on main window**: Added `sandbox: true` to the main BrowserWindow webPreferences
+- **Permission handler**: Added `setPermissionRequestHandler` to block camera, microphone, and geolocation requests from WhatsApp Web views
+- **Settings validation**: `updateSecuritySettings` now validates types and ranges for all fields (booleans, integers within bounds)
+- **Paranoia mode**: Now shows a confirmation dialog before deleting sessions (previously deleted immediately)
+- **Listener cleanup**: `preload-settings.js` now calls `removeAllListeners` before registering `once` to prevent listener accumulation
+
+### Fixed
+
+- **Theme persistence**: `settings:save` now persists the theme setting to the store
+- **Auto-submit overlap**: Lock screen clears previous auto-submit timer before setting a new one
+- **i18n state mutation**: `getTranslationsForLanguage` reads the locale file directly instead of mutating the global i18n state
+- **Power monitor settings**: `lockOnSuspend` and `lockOnScreenLock` are now checked at event time, not at registration time, so changes take effect without restart
+- **Window bounds**: Added `useContentSize: true` to prevent the menu bar from clipping the bottom of the WhatsApp view
+
+### Changed
+
+- **Architecture**: Split `main.js` (893 lines) into 4 focused modules: `main.js` (286), `window-manager.js` (319), `view-manager.js` (331), `ipc-handlers.js` (198)
+- **Architecture**: Split `security.js` (909 lines) into facade + 3 sub-modules: `pin-manager.js` (345), `lock-controller.js` (166), `session-protection.js` (341)
+- **Singleton store**: Single `electron-store` instance created in `main.js` and injected into all modules via `initStore()`
+- **Menu API**: `createMenu()` now accepts an options object instead of 6 positional parameters
+- **Comment fix**: Updated main.js header from "BrowserView" to "WebContentsView"
+
+### Added
+
+- **Unit tests**: 22 tests with Vitest covering PIN management, verification, lockout, settings validation
+- **SECURITY.md**: Responsible disclosure policy, security architecture, known limitations
+- **Test infrastructure**: `vitest.config.js`, `tests/setup.js` with Electron mocking via Module patching
+
+### Documentation
+
+- **README.md**: Updated project structure to reflect new modular architecture
+- **CONTRIBUTING.md**: Updated project structure, key files table, Node.js 22, removed `@version` from header template, added `npm run dev` and `npm test`
+
 ## [1.3.0] - 2026-03-02
 
 ### Security
@@ -238,6 +276,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.4.0 | 2026-03-19 | Modular architecture, 22 unit tests, security fixes, SECURITY.md |
 | 1.3.0 | 2026-03-02 | Electron 39, WebContentsView, security audit fixes, dead code removal |
 | 1.2.1 | 2026-01-26 | Security hardening, bug fixes, code quality |
 | 1.2.0 | 2026-01-26 | File downloads |
