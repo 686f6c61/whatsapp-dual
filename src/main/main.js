@@ -30,6 +30,7 @@ const { createMenu } = require('./menu');
 const i18n = require('../shared/i18n');
 const updater = require('./updater');
 const security = require('./security');
+const { resolveStoreConstructor } = require('./store-loader');
 const windowManager = require('./window-manager');
 const viewManager = require('./view-manager');
 const { registerIPCHandlers } = require('./ipc-handlers');
@@ -39,10 +40,10 @@ const { registerIPCHandlers } = require('./ipc-handlers');
 // =============================================================================
 
 /**
- * electron-store v11 is ESM-first and is exposed under `default` when loaded
- * via CommonJS require(). Fall back to the module itself for test mocks.
+ * electron-store v11 is ESM-first and its packaged export shape can vary
+ * between dev and production bundles.
  */
-const Store = ElectronStore.default || ElectronStore;
+const Store = resolveStoreConstructor(ElectronStore);
 
 /** @type {Store} Persistent storage for user preferences (singleton) */
 const store = new Store();

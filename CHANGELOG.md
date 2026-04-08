@@ -5,6 +5,18 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-04-09
+
+### Fixed
+
+- **Packaged startup**: Hardened `electron-store` constructor resolution so installed desktop builds start correctly even when Electron wraps the module export differently from development
+- **Desktop launcher**: Prevented the installed Linux launcher from failing immediately with `Store is not a constructor`
+
+### Quality
+
+- **Regression coverage**: Added focused tests for the packaged `electron-store` export shapes seen in production bundles
+- **Release packaging**: Switched project build scripts to a traversal-based `electron-builder` wrapper to avoid npm collector failures during Linux packaging
+
 ## [1.5.0] - 2026-04-08
 
 ### Improved
@@ -297,6 +309,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.5.1 | 2026-04-09 | Packaged startup fix for installed desktop builds |
 | 1.5.0 | 2026-04-08 | Runtime refresh, sandbox defaults, PIN flow polish, dependency maintenance |
 | 1.4.0 | 2026-03-19 | Modular architecture, 22 unit tests, security fixes, SECURITY.md |
 | 1.3.0 | 2026-03-02 | Electron 39, WebContentsView, security audit fixes, dead code removal |
