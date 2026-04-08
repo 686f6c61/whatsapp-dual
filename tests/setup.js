@@ -21,6 +21,7 @@ const electronMock = {
   },
   powerMonitor: { on: () => {} },
   ipcMain: { handle: () => {}, on: () => {} },
+  shell: { openExternal: () => Promise.resolve() },
   safeStorage: {
     isEncryptionAvailable: () => false,
     encryptString: (s) => Buffer.from(s),

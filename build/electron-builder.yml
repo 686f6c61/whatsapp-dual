@@ -60,7 +60,8 @@ extraResources:
 # =============================================================================
 # Linux Build Configuration
 # Targets: deb, AppImage, snap
-# The --no-sandbox flag is required for Electron 33+ on Linux
+# Chromium sandbox stays enabled by default. Users can still pass
+# --no-sandbox manually on systems where the sandbox cannot initialise.
 # =============================================================================
 linux:
   target:
@@ -86,10 +87,6 @@ linux:
       Categories: Network;InstantMessaging;Chat;
       Keywords: whatsapp;chat;messaging;business;
       StartupWMClass: whatsapp-dual
-  # Required for Electron 33+ sandbox on Linux
-  executableArgs:
-    - "--no-sandbox"
-
 # =============================================================================
 # Debian Package (.deb) Configuration
 # For Ubuntu, Debian, Linux Mint, and derivatives

@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // PIN setup
     setPIN: (pin) => ipcRenderer.invoke('security:setPIN', pin),
+    changePIN: (currentPIN, newPIN) => ipcRenderer.invoke('security:changePIN', currentPIN, newPIN),
     isPINSet: () => ipcRenderer.invoke('security:isPINSet'),
 
     // Lock/unlock

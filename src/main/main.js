@@ -23,7 +23,7 @@
  */
 
 const { app, BrowserWindow } = require('electron');
-const Store = require('electron-store');
+const ElectronStore = require('electron-store');
 const { ACCOUNTS } = require('../shared/constants');
 const { createTray, destroyTray, updateContextMenu } = require('./tray');
 const { createMenu } = require('./menu');
@@ -37,6 +37,12 @@ const { registerIPCHandlers } = require('./ipc-handlers');
 // =============================================================================
 // Configuration and State (singletons)
 // =============================================================================
+
+/**
+ * electron-store v11 is ESM-first and is exposed under `default` when loaded
+ * via CommonJS require(). Fall back to the module itself for test mocks.
+ */
+const Store = ElectronStore.default || ElectronStore;
 
 /** @type {Store} Persistent storage for user preferences (singleton) */
 const store = new Store();
@@ -164,7 +170,8 @@ function initializeSecurity() {
     security.registerIPCHandlers(() => ({
       settings: windowManager.getSettingsWindow(),
       lock: windowManager.getLockWindow(),
-      main: windowManager.getMainWindow()
+      main: windowManager.getMainWindow(),
+      views: Object.values(viewManager.getViews())
     }));
   }
 

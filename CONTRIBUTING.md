@@ -45,6 +45,9 @@ npm install
 
 # 5. Start the development server
 npm start
+
+# If Chromium sandboxing cannot initialise on your machine
+npm run start:unsafe
 ```
 
 ### Development Commands
@@ -55,6 +58,8 @@ The following npm scripts are available for development:
 |---------|-------------|
 | `npm start` | Start the app |
 | `npm run dev` | Start the app with logging enabled |
+| `npm run start:unsafe` | Start the app with Chromium sandbox disabled (compatibility fallback) |
+| `npm run dev:unsafe` | Start the app with logging and Chromium sandbox disabled |
 | `npm test` | Run unit tests |
 | `npm run build:linux` | Build packages for Linux (.deb, .AppImage, .snap) |
 | `npm run build:deb` | Build only the .deb package |
@@ -80,7 +85,8 @@ whatsapp-dual/
 │   │   ├── tray.js             # System tray integration
 │   │   ├── updater.js          # Auto-update functionality
 │   │   ├── preload-settings.js # Settings window preload
-│   │   └── preload-lock.js     # Lock screen preload
+│   │   ├── preload-lock.js     # Lock screen preload
+│   │   └── preload-whatsapp.js # Activity bridge for WhatsApp views
 │   │
 │   ├── renderer/               # User interface (renderer process)
 │   │   ├── settings.html       # Settings modal
@@ -92,8 +98,7 @@ whatsapp-dual/
 │   │   │   └── lock-setup.js   # PIN setup logic
 │   │   └── styles/
 │   │       ├── settings.css    # Settings styles
-│   │       ├── lock.css        # Lock screen styles
-│   │       └── lock-setup.css  # PIN setup styles
+│   │       └── lock.css        # Lock and PIN setup styles
 │   │
 │   └── shared/                 # Shared between main and renderer
 │       ├── constants.js        # Application constants
@@ -101,15 +106,17 @@ whatsapp-dual/
 │
 ├── tests/                      # Unit tests (Vitest)
 │   ├── setup.js                # Test setup (Electron mocks)
-│   └── security.test.js        # Security module tests
+│   ├── security.test.js        # Security module tests
+│   ├── lock-controller.test.js # Auto-lock timer tests
+│   ├── session-protection.test.js # Session traversal tests
+│   └── view-manager.test.js    # Permission allowlist tests
 │
 ├── locales/                    # Translation files
 │   ├── en.json                 # English translations
 │   └── es.json                 # Spanish translations
 │
 ├── assets/
-│   ├── icons/                  # Application icons
-│   └── tray/                   # Tray icons
+│   └── icons/                  # Application icons
 │
 ├── build/
 │   └── electron-builder.yml    # Build configuration
@@ -236,6 +243,9 @@ git checkout -b fix/bug-description
 ```bash
 # Start the app and test manually
 npm start
+
+# Use only if Chromium sandboxing cannot initialise locally
+npm run start:unsafe
 
 # Build and test the packaged version
 npm run build:deb

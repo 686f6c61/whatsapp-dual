@@ -80,13 +80,33 @@ function validateAndPersistSettings(settings, store) {
  * @returns {void}
  */
 function registerIPCHandlers({ store, windowManager, viewManager, security, rebuildMenus }) {
+  /**
+   * Validate that the sender matches one of the allowed application windows.
+   *
+   * @param {Electron.IpcMainEvent|Electron.IpcMainInvokeEvent} event - IPC event
+   * @param {Array<'settings'|'lock'|'main'>} allowedWindowNames - Allowed senders
+   * @returns {boolean} True if sender is one of the allowed windows
+   */
+  function validateWindowSender(event, allowedWindowNames) {
+    const windows = {
+      settings: windowManager.getSettingsWindow(),
+      lock: windowManager.getLockWindow(),
+      main: windowManager.getMainWindow(),
+    };
+
+    return allowedWindowNames.some(name => {
+      const win = windows[name];
+      return win && !win.isDestroyed() && win.webContents === event.sender;
+    });
+  }
 
   // ===========================================================================
   // Window IPC
   // ===========================================================================
 
   /** Close settings window from renderer request */
-  ipcMain.on('close-settings', () => {
+  ipcMain.on('close-settings', (event) => {
+    if (!validateWindowSender(event, ['settings'])) return;
     const settingsWindow = windowManager.getSettingsWindow();
     if (settingsWindow) {
       settingsWindow.close();
@@ -98,7 +118,8 @@ function registerIPCHandlers({ store, windowManager, viewManager, security, rebu
   // ===========================================================================
 
   /** Return all settings to the settings window */
-  ipcMain.handle('settings:getAll', () => {
+  ipcMain.handle('settings:getAll', (event) => {
+    if (!validateWindowSender(event, ['settings'])) return null;
     return {
       language: store.get('language', 'en'),
       theme: store.get('theme', 'system'),
@@ -111,6 +132,7 @@ function registerIPCHandlers({ store, windowManager, viewManager, security, rebu
 
   /** Save settings from the settings window */
   ipcMain.handle('settings:save', (event, settings) => {
+    if (!validateWindowSender(event, ['settings'])) return false;
     if (typeof settings !== 'object' || settings === null) return false;
 
     if (!validateAndPersistSettings(settings, store)) return false;
@@ -137,22 +159,26 @@ function registerIPCHandlers({ store, windowManager, viewManager, security, rebu
   // ===========================================================================
 
   /** Return translations for the current language */
-  ipcMain.handle('i18n:getTranslations', () => {
+  ipcMain.handle('i18n:getTranslations', (event) => {
+    if (!validateWindowSender(event, ['settings', 'lock'])) return {};
     return i18n.getAllTranslations();
   });
 
   /** Return current language code */
-  ipcMain.handle('i18n:getLanguage', () => {
+  ipcMain.handle('i18n:getLanguage', (event) => {
+    if (!validateWindowSender(event, ['settings'])) return 'en';
     return i18n.getLanguage();
   });
 
   /** Return list of available language codes */
-  ipcMain.handle('i18n:getAvailableLanguages', () => {
+  ipcMain.handle('i18n:getAvailableLanguages', (event) => {
+    if (!validateWindowSender(event, ['settings'])) return [];
     return i18n.getAvailableLanguages();
   });
 
   /** Return translations for a specific language (for preview) */
   ipcMain.handle('i18n:getTranslationsForLanguage', (event, lang) => {
+    if (!validateWindowSender(event, ['settings'])) return i18n.getAllTranslations();
     // Validate lang to prevent path traversal (S-01)
     if (typeof lang !== 'string' || !/^[a-z]{2}(-[A-Z]{2})?$/.test(lang)) {
       return i18n.getAllTranslations();
@@ -178,7 +204,8 @@ function registerIPCHandlers({ store, windowManager, viewManager, security, rebu
   // ===========================================================================
 
   /** Handle PIN setup completion - close setup window and notify settings (B5 fix) */
-  ipcMain.on('security:pinSetupComplete', () => {
+  ipcMain.on('security:pinSetupComplete', (event) => {
+    if (!validateWindowSender(event, ['lock'])) return;
     windowManager.hideLockScreen({
       restoreCurrentView: () => viewManager.restoreCurrentView(windowManager.getMainWindow())
     });
@@ -190,22 +217,25 @@ function registerIPCHandlers({ store, windowManager, viewManager, security, rebu
   });
 
   /** Handle skip PIN setup - close setup window and show main app */
-  ipcMain.on('security:skipPINSetup', () => {
+  ipcMain.on('security:skipPINSetup', (event) => {
+    if (!validateWindowSender(event, ['lock'])) return;
     windowManager.hideLockScreen({
       restoreCurrentView: () => viewManager.restoreCurrentView(windowManager.getMainWindow())
     });
   });
 
   /** Handle manual lock request from settings or menu */
-  ipcMain.on('security:lockNow', () => {
+  ipcMain.on('security:lockNow', (event) => {
+    if (!validateWindowSender(event, ['settings'])) return;
     if (security.isPINEnabled()) {
       security.lockApp();
     }
   });
 
   /** Handle opening PIN setup from settings */
-  ipcMain.on('security:setupPIN', () => {
-    windowManager.showPINSetupScreen();
+  ipcMain.on('security:setupPIN', (event, mode) => {
+    if (!validateWindowSender(event, ['settings'])) return;
+    windowManager.showPINSetupScreen(mode === 'change' ? 'change' : 'setup');
   });
 }
 

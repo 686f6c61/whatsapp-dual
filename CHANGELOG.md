@@ -5,6 +5,27 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-04-08
+
+### Improved
+
+- **PIN flow polish**: Refined PIN setup and update flow so current-PIN verification, long PIN entry, and unlock behaviour feel consistent end-to-end
+- **Inactivity handling**: Improved auto-lock responsiveness by resetting the timer from real activity inside WhatsApp views instead of relying on static timers alone
+- **Theme controls**: Added an explicit theme selector in Settings and tightened theme persistence when saving preferences
+- **Notifications**: Refined permission handling so desktop notifications stay limited to trusted WhatsApp origins while the rest of the permission surface remains locked down
+
+### Security
+
+- **Runtime refresh**: Updated Electron and project dependencies to their latest stable versions and refreshed transitive overrides
+- **Sandbox defaults**: Restored Chromium sandboxing as the default runtime path while keeping an explicit compatibility fallback for environments that need it
+- **IPC hardening**: Expanded sender validation across settings, lock, and activity channels
+- **Session handling**: Tightened recursive session file operations to avoid following symbolic links outside the intended storage tree
+
+### Quality
+
+- **Coverage refresh**: Added targeted tests for permission allowlisting, auto-lock timer lifecycle, and recursive session scanning
+- **Dependency maintenance**: Regenerated lockfile and left the npm audit report clean at release time
+
 ## [1.4.0] - 2026-03-19
 
 ### Security
@@ -276,6 +297,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.5.0 | 2026-04-08 | Runtime refresh, sandbox defaults, PIN flow polish, dependency maintenance |
 | 1.4.0 | 2026-03-19 | Modular architecture, 22 unit tests, security fixes, SECURITY.md |
 | 1.3.0 | 2026-03-02 | Electron 39, WebContentsView, security audit fixes, dead code removal |
 | 1.2.1 | 2026-01-26 | Security hardening, bug fixes, code quality |

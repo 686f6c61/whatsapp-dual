@@ -86,6 +86,9 @@ function initAutoLock(mainWindow, onLock, onUnlock) {
  * Reset the auto-lock timer.
  */
 function resetLockTimer() {
+  clearTimeout(lockTimer);
+  lockTimer = null;
+
   if (!_store.get('security.autoLockEnabled', _SECURITY_DEFAULTS.autoLockEnabled)) {
     return;
   }
@@ -93,8 +96,6 @@ function resetLockTimer() {
   if (!_isPINEnabled()) {
     return;
   }
-
-  clearTimeout(lockTimer);
 
   const timeout = _store.get('security.autoLockTimeout', _SECURITY_DEFAULTS.autoLockTimeout) * 60 * 1000;
 
@@ -113,6 +114,7 @@ function lockApp() {
 
   isLocked = true;
   clearTimeout(lockTimer);
+  lockTimer = null;
 
   if (onLockCallback) {
     onLockCallback();

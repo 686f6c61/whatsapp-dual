@@ -64,7 +64,11 @@ function setPermissionsRecursive(dirPath) {
 
     for (const item of items) {
       const fullPath = path.join(dirPath, item);
-      const stat = fs.statSync(fullPath);
+      const stat = fs.lstatSync(fullPath);
+
+      if (stat.isSymbolicLink()) {
+        continue;
+      }
 
       if (stat.isDirectory()) {
         fs.chmodSync(fullPath, 0o700); // rwx------
@@ -133,7 +137,11 @@ function getFilesRecursive(dirPath) {
 
     for (const item of items) {
       const fullPath = path.join(dirPath, item);
-      const stat = fs.statSync(fullPath);
+      const stat = fs.lstatSync(fullPath);
+
+      if (stat.isSymbolicLink()) {
+        continue;
+      }
 
       if (stat.isDirectory()) {
         files.push(...getFilesRecursive(fullPath));

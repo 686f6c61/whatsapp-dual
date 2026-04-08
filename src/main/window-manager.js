@@ -19,6 +19,7 @@ const { BrowserWindow, dialog } = require('electron');
 const path = require('node:path');
 const { WINDOW_CONFIG } = require('../shared/constants');
 const i18n = require('../shared/i18n');
+const help = require('./help');
 
 // =============================================================================
 // Window State
@@ -173,9 +174,19 @@ function createAboutWindow(app) {
     type: 'info',
     title: i18n.t('about.title', 'About WhatsApp Dual'),
     message: 'WhatsApp Dual',
-    detail: `${i18n.t('about.version', 'Version')}: ${appVersion}\n\n${i18n.t('about.description', 'Use WhatsApp Personal and Business in a single app.')}\n\n${i18n.t('about.author', 'Author')}: 686f6c61\n${i18n.t('about.license', 'License')}: MIT\n\nhttps://github.com/686f6c61/whatsapp-dual`,
-    buttons: [i18n.t('about.ok', 'OK')],
+    detail: help.getAboutDetail(appVersion),
+    buttons: [
+      i18n.t('menu.changelog', 'Changelog'),
+      i18n.t('menu.github', 'GitHub Repository'),
+      i18n.t('about.ok', 'OK')
+    ],
     icon: path.join(__dirname, '../../assets/icons/icon.png')
+  }).then(result => {
+    if (result.response === 0) {
+      help.openChangelog();
+    } else if (result.response === 1) {
+      help.openRepository();
+    }
   });
 }
 
@@ -260,9 +271,10 @@ function hideLockScreen({ restoreCurrentView }) {
 /**
  * Shows the PIN setup screen for first-time configuration.
  *
+ * @param {'setup'|'change'} [mode='setup'] - Setup flow mode
  * @returns {void}
  */
-function showPINSetupScreen() {
+function showPINSetupScreen(mode = 'setup') {
   if (lockWindow) {
     lockWindow.close();
   }
@@ -288,7 +300,9 @@ function showPINSetupScreen() {
     }
   });
 
-  lockWindow.loadFile(path.join(__dirname, '../renderer/lock-setup.html'));
+  lockWindow.loadFile(path.join(__dirname, '../renderer/lock-setup.html'), {
+    query: { mode }
+  });
 
   lockWindow.on('closed', () => {
     lockWindow = null;

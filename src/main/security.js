@@ -128,9 +128,24 @@ function registerIPCHandlers(getWindows) {
   function validateSender(event) {
     if (!getWindows) return true;
     const windows = getWindows();
-    return Object.values(windows).some(win =>
-      win && !win.isDestroyed() && win.webContents === event.sender
-    );
+    const authorizedContents = [];
+
+    for (const value of Object.values(windows)) {
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          if (item?.webContents && !item.webContents.isDestroyed()) {
+            authorizedContents.push(item.webContents);
+          }
+        }
+        continue;
+      }
+
+      if (value?.webContents && !value.webContents.isDestroyed()) {
+        authorizedContents.push(value.webContents);
+      }
+    }
+
+    return authorizedContents.some(contents => contents === event.sender);
   }
   // PIN operations (read-only — no sender validation needed)
   ipcMain.handle('security:isPINSet', () => pinManager.isPINSet());
@@ -207,7 +222,10 @@ function registerIPCHandlers(getWindows) {
   });
 
   // Activity (to reset timer)
-  ipcMain.on('security:activity', () => lockController.resetLockTimer());
+  ipcMain.on('security:activity', (event) => {
+    if (!validateSender(event)) return;
+    lockController.resetLockTimer();
+  });
 }
 
 // ---------------------------------------------------------------------------

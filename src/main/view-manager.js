@@ -16,6 +16,7 @@
  */
 
 const { WebContentsView, shell } = require('electron');
+const path = require('node:path');
 const { WHATSAPP_URL, ACCOUNTS } = require('../shared/constants');
 const { setNotificationState } = require('./tray');
 
@@ -80,6 +81,19 @@ function isAllowedScheme(url) {
   } catch {
     return false;
   }
+}
+
+/**
+ * Checks whether a permission request should be allowed.
+ *
+ * Only desktop notifications from trusted WhatsApp origins are allowed.
+ *
+ * @param {string} permission - Electron permission name
+ * @param {string} [requestingOrigin] - Origin requesting the permission
+ * @returns {boolean} True if permission is allowed
+ */
+function isAllowedPermissionRequest(permission, requestingOrigin = '') {
+  return permission === 'notifications' && isWhatsAppURL(requestingOrigin);
 }
 
 // =============================================================================
@@ -168,6 +182,25 @@ function setupDownloadHandler(webContents) {
   });
 }
 
+/**
+ * Configures permission handling for a WebContentsView session.
+ *
+ * Desktop notifications are allowed only for trusted WhatsApp origins.
+ * All other permission checks and requests are denied.
+ *
+ * @param {Electron.WebContents} webContents - The webContents whose session to configure
+ * @returns {void}
+ */
+function setupPermissionHandlers(webContents) {
+  webContents.session.setPermissionCheckHandler((_contents, permission, requestingOrigin) => {
+    return isAllowedPermissionRequest(permission, requestingOrigin);
+  });
+
+  webContents.session.setPermissionRequestHandler((_contents, permission, callback, details) => {
+    callback(isAllowedPermissionRequest(permission, details?.requestingOrigin));
+  });
+}
+
 // =============================================================================
 // View Creation
 // =============================================================================
@@ -185,16 +218,13 @@ function createAccountView(accountConfig) {
       partition: accountConfig.partition,
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: true
+      sandbox: true,
+      preload: path.join(__dirname, 'preload-whatsapp.js')
     }
   });
 
   view.webContents.setUserAgent(USER_AGENT);
-
-  // Block permission requests (camera, microphone, geolocation, etc.)
-  view.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(false);
-  });
+  setupPermissionHandlers(view.webContents);
 
   view.webContents.loadURL(WHATSAPP_URL);
   setupExternalLinkHandler(view.webContents);
@@ -318,6 +348,7 @@ module.exports = {
   // URL helpers (exported for potential testing)
   isWhatsAppURL,
   isAllowedScheme,
+  isAllowedPermissionRequest,
   // View management
   createWhatsAppViews,
   createAccountView,
@@ -328,6 +359,7 @@ module.exports = {
   restoreCurrentView,
   // Handlers
   setupExternalLinkHandler,
+  setupPermissionHandlers,
   setupDownloadHandler,
   checkForUnreadMessages
 };

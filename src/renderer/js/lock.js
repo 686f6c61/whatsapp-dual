@@ -17,7 +17,6 @@ let isLocked = false;
 let lockoutEndTime = null;
 let lockoutInterval = null;
 let isSubmitting = false; // Q14 — debounce flag
-let autoSubmitTimer = null;
 let translations = {}; // Q8 — i18n translations
 
 // =============================================================================
@@ -68,6 +67,21 @@ function t(key, fallback) {
   return key;
 }
 
+/**
+ * Applies loaded translations to static DOM elements.
+ *
+ * @returns {void}
+ */
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(element => {
+    const key = element.dataset.i18n;
+    const translation = t(key);
+    if (translation && translation !== key) {
+      element.textContent = translation;
+    }
+  });
+}
+
 // =============================================================================
 // PIN Input Handling
 // =============================================================================
@@ -84,16 +98,6 @@ function addDigit(digit) {
 
   currentPIN += digit;
   updatePINDisplay();
-
-  // Auto-submit when 6+ digits entered (clear previous timer to avoid overlap)
-  if (currentPIN.length >= 6) {
-    clearTimeout(autoSubmitTimer);
-    autoSubmitTimer = setTimeout(() => {
-      if (currentPIN.length >= 4 && !isSubmitting) {
-        submitPIN();
-      }
-    }, 300);
-  }
 }
 
 /**
@@ -410,6 +414,7 @@ async function init() {
   try {
     if (globalThis.electronAPI?.i18n) {
       translations = await globalThis.electronAPI.i18n.getTranslations() || {};
+      applyTranslations();
     }
   } catch (error) {
     console.error('Error loading translations:', error);

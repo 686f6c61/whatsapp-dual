@@ -13,18 +13,19 @@
  * - Personal (Ctrl+1): Switch to Personal WhatsApp account
  * - Business (Ctrl+2): Switch to Business WhatsApp account
  * - Settings: Preferences, Reload, Quit
- * - Help: Updates, Shortcuts, About, GitHub
+ * - Help: Quick help, troubleshooting, updates, support, About
  *
  * Features:
- * - Update indicator (red dot) when new version is available
+ * - Update badge with version when a new release is available
  * - Keyboard shortcuts for all major actions
  * - Dynamic language switching without restart
  */
 
-const { Menu, app, dialog } = require('electron');
+const { Menu, app } = require('electron');
 const i18n = require('../shared/i18n');
 const updater = require('./updater');
 const security = require('./security');
+const help = require('./help');
 
 // =============================================================================
 // Menu Creation
@@ -36,7 +37,7 @@ const security = require('./security');
  * This function builds the entire menu structure with:
  * - Account switching items (Personal/Business)
  * - Settings submenu (Preferences, Reload, Quit)
- * - Help submenu (Updates, Shortcuts, About, GitHub)
+ * - Help submenu (Quick help, troubleshooting, updates, support, About)
  *
  * The menu is rebuilt when:
  * - The app starts
@@ -53,10 +54,10 @@ const security = require('./security');
  * @returns {void}
  */
 function createMenu({ switchAccount: switchAccountFn, openSettings: openSettingsFn, openAbout: openAboutFn, mainWindow, quit: quitFn, reload: reloadFn }) {
-  // Add visual indicator to Help menu when update is available
-  const helpLabel = updater.isUpdateAvailable()
-    ? `${i18n.t('menu.help', 'Help')} (!)`
-    : i18n.t('menu.help', 'Help');
+  const availableUpdate = updater.getUpdateInfo();
+  const updateLabel = availableUpdate?.version
+    ? `● ${i18n.t('updates.updateAvailable', 'Update available!')} · v${availableUpdate.version}`
+    : i18n.t('updates.checkForUpdates', 'Check for updates');
 
   // Define the complete menu template
   const template = [
@@ -126,13 +127,21 @@ function createMenu({ switchAccount: switchAccountFn, openSettings: openSettings
     // Help Submenu
     // =========================================================================
     {
-      label: helpLabel,
+      label: i18n.t('menu.help', 'Help'),
       submenu: [
+        {
+          label: i18n.t('menu.quickHelp', 'Quick help'),
+          click: () => help.showQuickHelp(mainWindow)
+        },
+        {
+          label: i18n.t('menu.troubleshooting', 'Troubleshooting'),
+          click: () => help.showTroubleshooting(mainWindow)
+        },
+        { type: 'separator' },
+
         // Update check / download item
         {
-          label: updater.isUpdateAvailable()
-            ? `${i18n.t('updates.updateAvailable', 'Update available!')} (!)`
-            : i18n.t('updates.checkForUpdates', 'Check for updates'),
+          label: updateLabel,
           click: () => {
             if (updater.isUpdateAvailable()) {
               updater.showUpdateDialog(mainWindow);
@@ -143,18 +152,19 @@ function createMenu({ switchAccount: switchAccountFn, openSettings: openSettings
         },
         { type: 'separator' },
 
-        // Keyboard shortcuts reference
+        {
+          label: i18n.t('menu.changelog', 'Changelog'),
+          click: () => help.openChangelog()
+        },
+        {
+          label: i18n.t('menu.reportIssue', 'Report an issue'),
+          click: () => help.openIssueTracker()
+        },
+        { type: 'separator' },
+
         {
           label: i18n.t('menu.shortcuts', 'Keyboard shortcuts'),
-          click: () => {
-            dialog.showMessageBox(mainWindow, {
-              type: 'info',
-              title: i18n.t('menu.shortcuts', 'Keyboard shortcuts'),
-              message: i18n.t('menu.shortcuts', 'Keyboard shortcuts'),
-              detail: `Ctrl+1 → Personal\nCtrl+2 → Business\nCtrl+, → ${i18n.t('menu.preferences', 'Preferences')}\nCtrl+L → ${i18n.t('menu.lockNow', 'Lock now')}\nCtrl+R → ${i18n.t('menu.reload', 'Reload')}\nCtrl+Q → ${i18n.t('menu.quit', 'Quit')}`,
-              buttons: [i18n.t('about.ok', 'OK')]
-            });
-          }
+          click: () => help.showKeyboardShortcuts(mainWindow)
         },
         { type: 'separator' },
 
@@ -168,9 +178,7 @@ function createMenu({ switchAccount: switchAccountFn, openSettings: openSettings
         // GitHub repository link
         {
           label: i18n.t('menu.github', 'GitHub Repository'),
-          click: () => {
-            require('electron').shell.openExternal('https://github.com/686f6c61/whatsapp-dual');
-          }
+          click: () => help.openRepository()
         }
       ]
     }

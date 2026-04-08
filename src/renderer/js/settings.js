@@ -125,6 +125,12 @@ function applyTranslations() {
  * @returns {void}
  */
 function applyThemeFromSetting(theme) {
+  if (applyThemeFromSetting._mediaQuery && applyThemeFromSetting._systemListener) {
+    applyThemeFromSetting._mediaQuery.removeEventListener('change', applyThemeFromSetting._systemListener);
+    applyThemeFromSetting._mediaQuery = null;
+    applyThemeFromSetting._systemListener = null;
+  }
+
   let effective;
   if (theme === 'dark') {
     effective = 'dark';
@@ -142,11 +148,7 @@ function applyThemeFromSetting(theme) {
   // Listen for OS theme changes when following system preference
   if (theme === 'system' && globalThis.matchMedia) {
     const mq = globalThis.matchMedia('(prefers-color-scheme: dark)');
-    // Remove any previous listener by replacing via a named handler stored on
-    // the element (avoids leaking multiple listeners).
-    if (applyThemeFromSetting._systemListener) {
-      mq.removeEventListener('change', applyThemeFromSetting._systemListener);
-    }
+    applyThemeFromSetting._mediaQuery = mq;
     applyThemeFromSetting._systemListener = (e) => {
       document.documentElement.dataset.theme = e.matches ? 'dark' : 'light';
     };
@@ -160,6 +162,9 @@ function applyThemeFromSetting(theme) {
 
 /** @type {HTMLSelectElement} Language selector dropdown */
 const selectLanguage = document.getElementById('select-language');
+
+/** @type {HTMLSelectElement} Theme selector dropdown */
+const selectTheme = document.getElementById('select-theme');
 
 /** @type {HTMLInputElement} Checkbox for start with system */
 const checkStartup = document.getElementById('check-startup');
@@ -266,6 +271,7 @@ async function loadSettings() {
 
     // Theme
     const savedTheme = settings.theme || 'system';
+    selectTheme.value = savedTheme;
     applyThemeFromSetting(savedTheme);
 
     // Behavior
@@ -388,16 +394,9 @@ function updateAutolockTimeoutVisibility() {
  */
 async function saveSettings() {
   try {
-    // Build the settings object
-    // Detect current theme from document attribute
-    const currentTheme = document.documentElement.dataset.theme || 'system';
-    // Determine the setting value: if user changed it, use that; otherwise use stored
-    const themeSelect = document.getElementById('select-theme');
-    const themeValue = themeSelect ? themeSelect.value : currentTheme;
-
     const settingsData = {
       language: selectLanguage.value,
-      theme: themeValue,
+      theme: selectTheme.value,
       startWithSystem: checkStartup.checked,
       startMinimized: checkMinimized.checked,
       minimizeToTray: checkTray.checked,
@@ -405,7 +404,10 @@ async function saveSettings() {
     };
 
     // Save general settings (this also notifies the main process)
-    await api.settings.save(settingsData);
+    const settingsSaved = await api.settings.save(settingsData);
+    if (!settingsSaved) {
+      throw new Error('General settings were rejected by the main process');
+    }
 
     // Save security settings to main process
     await saveSecuritySettings();
@@ -438,9 +440,13 @@ async function saveSecuritySettings() {
       deleteOnMaxAttempts: checkDeleteOnMax.checked
     };
 
-    await api.security.saveSettings(securitySettings);
+    const securitySaved = await api.security.saveSettings(securitySettings);
+    if (!securitySaved) {
+      throw new Error('Security settings were rejected by the main process');
+    }
   } catch (error) {
     console.error('Error saving security settings:', error);
+    throw error;
   }
 }
 
@@ -483,6 +489,10 @@ selectLanguage.addEventListener('change', async () => {
   }
 });
 
+selectTheme.addEventListener('change', () => {
+  applyThemeFromSetting(selectTheme.value);
+});
+
 /**
  * Keyboard shortcuts for the settings window.
  *
@@ -514,7 +524,7 @@ document.addEventListener('keydown', (e) => {
 checkPinEnabled.addEventListener('change', async () => {
   if (checkPinEnabled.checked && !isPinSet) {
     // Need to set up PIN first - open PIN setup window
-    api.security.setupPIN();
+    api.security.setupPIN('setup');
 
     // Wait for PIN setup to complete instead of using setTimeout (fixes B5)
     api.security.onPINSetupComplete(async () => {
@@ -539,7 +549,7 @@ checkAutolock.addEventListener('change', () => {
  * Opens the PIN setup window and listens for completion.
  */
 btnSetupPin.addEventListener('click', () => {
-  api.security.setupPIN();
+  api.security.setupPIN('setup');
 
   // Listen for PIN setup completion and reload settings
   api.security.onPINSetupComplete(async () => {
@@ -553,7 +563,7 @@ btnSetupPin.addEventListener('click', () => {
  * Opens the PIN setup window to change existing PIN and listens for completion.
  */
 btnChangePin.addEventListener('click', () => {
-  api.security.setupPIN();
+  api.security.setupPIN('change');
 
   // Listen for PIN setup completion and reload settings
   api.security.onPINSetupComplete(async () => {

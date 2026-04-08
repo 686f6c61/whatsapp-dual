@@ -68,10 +68,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.4.0_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.5.0_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.4.0_amd64.deb
+sudo dpkg -i whatsapp-dual_1.5.0_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -83,13 +83,13 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.4.0-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.5.0-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.4.0-x86_64.AppImage
+chmod +x WhatsAppDual-1.5.0-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.4.0-x86_64.AppImage
+./WhatsAppDual-1.5.0-x86_64.AppImage
 ```
 
 ### Option 3: Build from Source
@@ -106,6 +106,9 @@ npm install
 
 # Run in development mode
 npm start
+
+# Compatibility fallback for systems where Chromium sandboxing cannot initialise
+npm run start:unsafe
 
 # Build for Linux (creates .deb, .AppImage, and .snap)
 npm run build:linux
@@ -131,6 +134,7 @@ The settings window allows you to customize WhatsApp Dual's behavior to match yo
 ### Available Options
 
 - **Language**: Choose between English and Spanish (more can be added via locale files)
+- **Theme**: Follow the system appearance or choose light/dark explicitly
 - **Default Account**: Select which account to display when the app starts
 - **Minimize to Tray**: When enabled, closing the window minimizes to the system tray instead of quitting
 - **Start with System**: Automatically launch WhatsApp Dual when you log in
@@ -257,7 +261,8 @@ whatsapp-dual/
 │   │   ├── tray.js         # System tray integration
 │   │   ├── updater.js      # Auto-update functionality
 │   │   ├── preload-settings.js  # Settings window preload
-│   │   └── preload-lock.js      # Lock screen preload
+│   │   ├── preload-lock.js      # Lock screen preload
+│   │   └── preload-whatsapp.js  # Activity bridge for WhatsApp views
 │   ├── renderer/           # User interface
 │   │   ├── settings.html   # Settings modal
 │   │   ├── lock.html       # Lock screen
@@ -282,6 +287,9 @@ npm install
 
 # Start the app
 npm start
+
+# Use only if Chromium sandboxing cannot initialise locally
+npm run start:unsafe
 
 # Run unit tests
 npm test

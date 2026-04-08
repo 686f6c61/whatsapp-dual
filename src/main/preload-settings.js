@@ -34,7 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getSettings: () => ipcRenderer.invoke('security:getSettings'),
     saveSettings: (settings) => ipcRenderer.invoke('security:saveSettings', settings),
     removePIN: (pin) => ipcRenderer.invoke('security:removePIN', pin),
-    setupPIN: () => ipcRenderer.send('security:setupPIN'),
+    setupPIN: (mode = 'setup') => ipcRenderer.send('security:setupPIN', mode),
     lockNow: () => ipcRenderer.send('security:lockNow'),
     onPINSetupComplete: (callback) => {
       // Remove any previous listener to prevent accumulation

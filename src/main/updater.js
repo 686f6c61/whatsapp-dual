@@ -24,9 +24,13 @@
  * - Automatic installation on quit
  */
 
+const path = require('node:path');
 const { autoUpdater } = require('electron-updater');
-const { dialog, Notification } = require('electron');
+const { app, dialog, Notification } = require('electron');
 const i18n = require('../shared/i18n');
+const help = require('./help');
+
+const APP_ICON_PATH = path.join(__dirname, '../../assets/icons/icon.png');
 
 // =============================================================================
 // Module State
@@ -91,12 +95,29 @@ function checkForUpdates(silent = true) {
  */
 function checkForUpdatesManual(mainWindow) {
   autoUpdater.checkForUpdates().then(result => {
-    if (!result?.updateInfo || result.updateInfo.version === require('electron').app.getVersion()) {
+    if (result?.updateInfo && result.updateInfo.version !== app.getVersion()) {
+      updateAvailable = true;
+      updateInfo = result.updateInfo;
+
+      if (onUpdateStatusChange) {
+        onUpdateStatusChange(true, result.updateInfo);
+      }
+
+      showUpdateDialog(mainWindow);
+      return;
+    }
+
+    if (!result?.updateInfo || result.updateInfo.version === app.getVersion()) {
       dialog.showMessageBox(mainWindow, {
         type: 'info',
         title: i18n.t('updates.title', 'Updates'),
         message: i18n.t('updates.noUpdates', 'No updates available'),
-        detail: i18n.t('updates.upToDate', 'You are using the latest version.')
+        detail: i18n.t('updates.upToDate', 'You are using the latest version.'),
+        buttons: [i18n.t('menu.changelog', 'Changelog'), i18n.t('about.ok', 'OK')]
+      }).then(result => {
+        if (result.response === 0) {
+          help.openChangelog();
+        }
       });
     }
   }).catch(err => {
@@ -140,7 +161,7 @@ autoUpdater.on('update-available', (info) => {
     const notification = new Notification({
       title: 'WhatsApp Dual',
       body: i18n.t('updates.available', 'Update available') + `: v${info.version}`,
-      icon: undefined
+      icon: APP_ICON_PATH
     });
     notification.show();
   }
@@ -186,10 +207,13 @@ autoUpdater.on('update-downloaded', (info) => {
     title: i18n.t('updates.title', 'Updates'),
     message: i18n.t('updates.downloaded', 'Update downloaded'),
     detail: i18n.t('updates.restartToInstall', 'Restart the app to install the update.'),
-    buttons: [i18n.t('updates.restartNow', 'Restart now'), i18n.t('updates.later', 'Later')]
+    icon: APP_ICON_PATH,
+    buttons: [i18n.t('updates.restartNow', 'Restart now'), i18n.t('menu.changelog', 'Changelog'), i18n.t('updates.later', 'Later')]
   }).then(result => {
     if (result.response === 0) {
       autoUpdater.quitAndInstall();
+    } else if (result.response === 1) {
+      help.openChangelog();
     }
   });
 });
@@ -230,11 +254,14 @@ function showUpdateDialog(mainWindow) {
       type: 'info',
       title: i18n.t('updates.title', 'Updates'),
       message: i18n.t('updates.newVersion', 'New version available'),
-      detail: `${i18n.t('updates.currentVersion', 'Current version')}: ${require('electron').app.getVersion()}\n${i18n.t('updates.availableVersion', 'Available version')}: ${updateInfo.version}`,
-      buttons: [i18n.t('updates.download', 'Download'), i18n.t('updates.later', 'Later')]
+      icon: APP_ICON_PATH,
+      detail: `${i18n.t('updates.currentVersion', 'Current version')}: ${app.getVersion()}\n${i18n.t('updates.availableVersion', 'Available version')}: ${updateInfo.version}`,
+      buttons: [i18n.t('updates.download', 'Download'), i18n.t('menu.changelog', 'Changelog'), i18n.t('updates.later', 'Later')]
     }).then(result => {
       if (result.response === 0) {
         downloadUpdate();
+      } else if (result.response === 1) {
+        help.openChangelog();
       }
     });
   } else {
@@ -242,7 +269,13 @@ function showUpdateDialog(mainWindow) {
       type: 'info',
       title: i18n.t('updates.title', 'Updates'),
       message: i18n.t('updates.noUpdates', 'No updates available'),
-      detail: i18n.t('updates.upToDate', 'You are using the latest version.')
+      icon: APP_ICON_PATH,
+      detail: i18n.t('updates.upToDate', 'You are using the latest version.'),
+      buttons: [i18n.t('menu.changelog', 'Changelog'), i18n.t('about.ok', 'OK')]
+    }).then(result => {
+      if (result.response === 0) {
+        help.openChangelog();
+      }
     });
   }
 }
@@ -280,6 +313,10 @@ function isUpdateAvailable() {
   return updateAvailable;
 }
 
+function getUpdateInfo() {
+  return updateInfo;
+}
+
 // =============================================================================
 // Module Exports
 // =============================================================================
@@ -290,5 +327,6 @@ module.exports = {
   downloadUpdate,
   showUpdateDialog,
   setUpdateStatusCallback,
-  isUpdateAvailable
+  isUpdateAvailable,
+  getUpdateInfo
 };
