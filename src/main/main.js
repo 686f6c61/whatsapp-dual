@@ -132,9 +132,18 @@ function initializeWindow() {
     viewManager.updateViewBounds(windowManager.getMainWindow());
   });
 
+  mainWindow.on('resized', () => {
+    viewManager.updateViewBounds(windowManager.getMainWindow());
+  });
+
+  mainWindow.contentView.on('bounds-changed', () => {
+    viewManager.updateViewBounds(windowManager.getMainWindow());
+  });
+
   // Update bounds and tray menu when window is shown (Q4)
   mainWindow.on('show', () => {
     viewManager.updateViewBounds(windowManager.getMainWindow());
+    setImmediate(() => viewManager.updateViewBounds(windowManager.getMainWindow()));
     updateContextMenu();
   });
 

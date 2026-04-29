@@ -252,22 +252,42 @@ function createWhatsAppViews() {
 // =============================================================================
 
 /**
+ * Returns the bounds that child WebContentsViews should use.
+ *
+ * BrowserWindow.getContentSize() can be stale during the first Wayland layout
+ * pass on Linux. The root contentView owns the actual available area for child
+ * views, so prefer its current bounds and fall back only for older Electron
+ * shapes or mocks.
+ *
+ * @param {BrowserWindow} mainWindow - The main application window
+ * @returns {{x: number, y: number, width: number, height: number}|null}
+ */
+function getWebContentsViewBounds(mainWindow) {
+  if (!mainWindow) return;
+
+  const contentBounds = mainWindow.contentView?.getBounds?.();
+  if (contentBounds?.width > 0 && contentBounds?.height > 0) {
+    return {
+      x: 0,
+      y: 0,
+      width: Math.floor(contentBounds.width),
+      height: Math.floor(contentBounds.height)
+    };
+  }
+
+  const [width, height] = mainWindow.getContentSize();
+  return { x: 0, y: 0, width, height };
+}
+
+/**
  * Updates the bounds of all WebContentsViews to match the window size.
  *
  * @param {BrowserWindow} mainWindow - The main application window
  * @returns {void}
  */
 function updateViewBounds(mainWindow) {
-  if (!mainWindow) return;
-
-  const [width, height] = mainWindow.getContentSize();
-
-  const viewBounds = {
-    x: 0,
-    y: 0,
-    width,
-    height
-  };
+  const viewBounds = getWebContentsViewBounds(mainWindow);
+  if (!viewBounds) return;
 
   Object.values(views).forEach(view => {
     view.setBounds(viewBounds);
@@ -349,6 +369,7 @@ module.exports = {
   isWhatsAppURL,
   isAllowedScheme,
   isAllowedPermissionRequest,
+  getWebContentsViewBounds,
   // View management
   createWhatsAppViews,
   createAccountView,

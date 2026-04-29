@@ -94,6 +94,7 @@ function createWindow({ store }) {
     useContentSize: true,
     title: 'WhatsApp Dual',
     icon: path.join(__dirname, '../../assets/icons/icon.png'),
+    backgroundColor: '#111b21',
     show: !startMinimized,
     webPreferences: {
       nodeIntegration: false,
@@ -101,6 +102,7 @@ function createWindow({ store }) {
       sandbox: true
     }
   });
+  mainWindow.contentView.setBackgroundColor('#111b21');
 
   mainWindow.on('closed', () => {
     mainWindow = null;

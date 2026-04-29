@@ -63,6 +63,27 @@ autoUpdater.autoInstallOnAppQuit = true;
 // =============================================================================
 
 /**
+ * Returns whether electron-updater can update the current build.
+ *
+ * On Linux, electron-updater only supports automatic updates for AppImage
+ * builds. Running the updater from source, .deb, or snap builds prints noisy
+ * APPIMAGE warnings that look like launch errors.
+ *
+ * @returns {boolean} True if automatic updates are supported
+ */
+function isAutoUpdaterSupported() {
+  if (!app.isPackaged) {
+    return false;
+  }
+
+  if (process.platform === 'linux' && !process.env.APPIMAGE) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * Checks for available updates.
  *
  * Connects to GitHub Releases to check if a newer version exists.
@@ -72,6 +93,10 @@ autoUpdater.autoInstallOnAppQuit = true;
  * @returns {void}
  */
 function checkForUpdates(silent = true) {
+  if (!isAutoUpdaterSupported()) {
+    return;
+  }
+
   autoUpdater.checkForUpdates().catch(err => {
     if (!silent) {
       dialog.showMessageBox({
@@ -94,6 +119,24 @@ function checkForUpdates(silent = true) {
  * @returns {void}
  */
 function checkForUpdatesManual(mainWindow) {
+  if (!isAutoUpdaterSupported()) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: i18n.t('updates.title', 'Updates'),
+      message: i18n.t('updates.unsupportedBuild', 'Automatic updates are not available for this build'),
+      detail: i18n.t(
+        'updates.unsupportedBuildDetail',
+        'On Linux, automatic updates are available only in the AppImage build. Install the latest release manually or use your package manager.'
+      ),
+      buttons: [i18n.t('menu.changelog', 'Changelog'), i18n.t('about.ok', 'OK')]
+    }).then(result => {
+      if (result.response === 0) {
+        help.openChangelog();
+      }
+    });
+    return;
+  }
+
   autoUpdater.checkForUpdates().then(result => {
     if (result?.updateInfo && result.updateInfo.version !== app.getVersion()) {
       updateAvailable = true;
@@ -230,7 +273,7 @@ autoUpdater.on('update-downloaded', (info) => {
  * @returns {void}
  */
 function downloadUpdate() {
-  if (updateAvailable) {
+  if (updateAvailable && isAutoUpdaterSupported()) {
     autoUpdater.downloadUpdate();
   }
 }
@@ -328,5 +371,6 @@ module.exports = {
   showUpdateDialog,
   setUpdateStatusCallback,
   isUpdateAvailable,
-  getUpdateInfo
+  getUpdateInfo,
+  isAutoUpdaterSupported
 };

@@ -5,6 +5,21 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-04-29
+
+### Fixed
+
+- **Ubuntu layout**: Fixed the white border that could appear around WhatsApp Web on Ubuntu/Wayland until the window was resized
+- **Linux updater noise**: Stopped automatic update checks from source, `.deb`, and snap builds to avoid misleading AppImage warnings at startup
+
+### Security
+
+- **Dependency maintenance**: Updated Electron and Vitest patch releases, refreshed transitive overrides, and restored a clean npm audit report
+
+### Quality
+
+- **Regression coverage**: Added tests for WebContentsView bounds calculation used by the Linux layout fix
+
 ## [1.5.1] - 2026-04-09
 
 ### Fixed
@@ -309,6 +324,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Highlights |
 |---------|------|------------|
+| 1.5.2 | 2026-04-29 | Ubuntu layout fix, Linux updater guard, dependency maintenance |
 | 1.5.1 | 2026-04-09 | Packaged startup fix for installed desktop builds |
 | 1.5.0 | 2026-04-08 | Runtime refresh, sandbox defaults, PIN flow polish, dependency maintenance |
 | 1.4.0 | 2026-03-19 | Modular architecture, 22 unit tests, security fixes, SECURITY.md |

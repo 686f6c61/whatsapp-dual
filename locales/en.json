@@ -95,6 +95,8 @@
     "newVersion": "New version available",
     "currentVersion": "Current version",
     "availableVersion": "Available version",
+    "unsupportedBuild": "Automatic updates are not available for this build",
+    "unsupportedBuildDetail": "On Linux, automatic updates are available only in the AppImage build. Install the latest release manually or use your package manager.",
     "download": "Download",
     "later": "Later",
     "downloaded": "Update downloaded",
