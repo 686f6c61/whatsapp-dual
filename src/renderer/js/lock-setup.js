@@ -24,31 +24,13 @@ let verifiedCurrentPIN = '';
 
 /**
  * Retrieves a translated string by dot-notation key.
+ * Delegates to the shared helper loaded from js/i18n-helper.js.
  *
  * @param {string} key - Dot-notation key
  * @param {string} [fallback] - Fallback if key not found
  * @returns {string}
  */
-function t(key, fallback) {
-  const parts = key.split('.');
-  let current = translations;
-  for (const part of parts) {
-    if (current == null || typeof current !== 'object' || !Object.hasOwn(current, part)) {
-      if (fallback !== undefined) {
-        return fallback;
-      }
-      return key;
-    }
-    current = current[part];
-  }
-  if (typeof current === 'string') {
-    return current;
-  }
-  if (fallback !== undefined) {
-    return fallback;
-  }
-  return key;
-}
+const t = (key, fallback) => translate(translations, key, fallback);
 
 /**
  * Applies loaded translations to static DOM elements.
@@ -244,16 +226,11 @@ async function verifyCurrentPIN() {
 }
 
 /**
- * Update the UI for the current step.
+ * Update the header texts (title, skip button) for the current mode.
+ *
+ * @param {boolean} isChangeMode - True when changing an existing PIN
  */
-function updateStepUI() {
-  const isChangeMode = setupMode === 'change';
-  const isCurrentPinStep = isChangeMode && step === 0;
-
-  if (stepIndicator) {
-    stepIndicator.hidden = isCurrentPinStep;
-  }
-
+function updateStepHeader(isChangeMode) {
   if (lockTitle) {
     lockTitle.textContent = isChangeMode
       ? t('settings.changePin', 'Change PIN')
@@ -265,32 +242,59 @@ function updateStepUI() {
       ? t('settings.cancel', 'Cancel')
       : t('setup.skip', 'Skip for now');
   }
+}
 
-  // Update step indicators
+/**
+ * Update the step indicator dots and connecting line.
+ */
+function updateStepIndicators() {
   stepIndicators.forEach((indicator, index) => {
     const stepNum = index + 1;
     indicator.classList.toggle('active', stepNum === step);
     indicator.classList.toggle('completed', stepNum < step);
   });
 
-  // Update step line
   if (stepLine) {
     stepLine.classList.toggle('active', step > 1);
   }
+}
 
-  // Update subtitle
-  if (setupSubtitle) {
-    if (isCurrentPinStep) {
-      setupSubtitle.textContent = t('setup.enterCurrent', 'Enter your current PIN');
-      setupSubtitle.dataset.i18n = 'setup.enterCurrent';
-    } else if (step === 1) {
-      setupSubtitle.textContent = t('setup.enterNew', 'Enter a new PIN (4-8 digits)');
-      setupSubtitle.dataset.i18n = 'setup.enterNew';
-    } else {
-      setupSubtitle.textContent = t('setup.confirmPin', 'Confirm your PIN');
-      setupSubtitle.dataset.i18n = 'setup.confirmPin';
-    }
+/**
+ * Update the subtitle text for the current step.
+ *
+ * @param {boolean} isCurrentPinStep - True while verifying the current PIN
+ */
+function updateStepSubtitle(isCurrentPinStep) {
+  if (!setupSubtitle) return;
+
+  let key = 'setup.confirmPin';
+  let fallback = 'Confirm your PIN';
+  if (isCurrentPinStep) {
+    key = 'setup.enterCurrent';
+    fallback = 'Enter your current PIN';
+  } else if (step === 1) {
+    key = 'setup.enterNew';
+    fallback = 'Enter a new PIN (4-8 digits)';
   }
+
+  setupSubtitle.textContent = t(key, fallback);
+  setupSubtitle.dataset.i18n = key;
+}
+
+/**
+ * Update the UI for the current step.
+ */
+function updateStepUI() {
+  const isChangeMode = setupMode === 'change';
+  const isCurrentPinStep = isChangeMode && step === 0;
+
+  if (stepIndicator) {
+    stepIndicator.hidden = isCurrentPinStep;
+  }
+
+  updateStepHeader(isChangeMode);
+  updateStepIndicators();
+  updateStepSubtitle(isCurrentPinStep);
 
   // Reset validation display for step 2
   if (step === 2 || isCurrentPinStep) {

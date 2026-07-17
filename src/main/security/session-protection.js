@@ -227,6 +227,10 @@ function showIntegrityWarning() {
 /**
  * Securely delete a file by overwriting with random data.
  *
+ * Known limitation: on SSDs (wear leveling) and journaling/copy-on-write
+ * filesystems the overwritten blocks may persist physically, so this is
+ * best-effort hygiene, not forensic-grade erasure (see SECURITY.md).
+ *
  * @param {string} filePath - Path to file
  */
 function secureDeleteFile(filePath) {

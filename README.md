@@ -68,10 +68,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.5.2_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.5.3_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.5.2_amd64.deb
+sudo dpkg -i whatsapp-dual_1.5.3_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -83,13 +83,13 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.5.2-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.5.3-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.5.2-x86_64.AppImage
+chmod +x WhatsAppDual-1.5.3-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.5.2-x86_64.AppImage
+./WhatsAppDual-1.5.3-x86_64.AppImage
 ```
 
 ### Option 3: Build from Source
@@ -142,7 +142,7 @@ The settings window allows you to customize WhatsApp Dual's behavior to match yo
 
 ## Security
 
-WhatsApp Dual includes comprehensive security features to protect your WhatsApp sessions from unauthorized access. These features are especially important if you share your computer with others or work in environments where you may need to step away from your desk. The security system uses industry-standard encryption (PBKDF2 with 100,000 iterations) to store your PIN securely in the operating system's keychain.
+WhatsApp Dual includes comprehensive security features to protect your WhatsApp sessions from unauthorized access. These features are especially important if you share your computer with others or work in environments where you may need to step away from your desk. The security system uses industry-standard encryption (PBKDF2 with 210,000 iterations) to store your PIN securely in the operating system's keychain.
 
 ### PIN Protection
 
@@ -151,7 +151,7 @@ The PIN protection feature requires a 4-8 digit code to access the application. 
 | Feature | Description |
 |---------|-------------|
 | PIN Length | 4-8 digits |
-| Encryption | PBKDF2-SHA512, 100,000 iterations |
+| Encryption | PBKDF2-SHA512, 210,000 iterations |
 | Storage | OS keychain (libsecret) |
 | Setup | Settings → Security → Set up PIN |
 
@@ -260,6 +260,8 @@ whatsapp-dual/
 │   │   ├── menu.js         # Application menu
 │   │   ├── tray.js         # System tray integration
 │   │   ├── updater.js      # Auto-update functionality
+│   │   ├── help.js         # Help and troubleshooting dialogs
+│   │   ├── store-loader.js # electron-store constructor resolution
 │   │   ├── preload-settings.js  # Settings window preload
 │   │   ├── preload-lock.js      # Lock screen preload
 │   │   └── preload-whatsapp.js  # Activity bridge for WhatsApp views
@@ -268,7 +270,7 @@ whatsapp-dual/
 │   │   ├── lock.html       # Lock screen
 │   │   ├── lock-setup.html # PIN setup screen
 │   │   ├── styles/         # CSS stylesheets
-│   │   └── js/             # Renderer scripts
+│   │   └── js/             # Renderer scripts (incl. shared i18n-helper.js)
 │   └── shared/             # Shared modules
 │       ├── constants.js    # Application constants
 │       └── i18n.js         # Internationalization
@@ -291,8 +293,22 @@ npm start
 # Use only if Chromium sandboxing cannot initialise locally
 npm run start:unsafe
 
-# Run unit tests
+# Run unit tests (once / watch mode / with coverage)
 npm test
+npm run test:watch
+npx vitest run --coverage
+```
+
+### Building Packages
+
+```bash
+# Build all Linux formats (AppImage, deb, snap)
+npm run build:linux
+
+# Or build a single format
+npm run build:appimage
+npm run build:deb
+npm run build:snap
 ```
 
 ## Contributing

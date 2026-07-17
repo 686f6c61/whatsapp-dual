@@ -1,3 +1,15 @@
+/**
+ * WhatsApp Dual - Help Module
+ *
+ * @author 686f6c61
+ * @license MIT
+ * @repository https://github.com/686f6c61/whatsapp-dual
+ *
+ * Native help dialogs for the Help menu: quick help, troubleshooting,
+ * keyboard shortcuts, and links to the changelog, issue tracker, and
+ * repository. All texts are internationalized via shared/i18n.
+ */
+
 const { dialog, shell } = require('electron');
 const i18n = require('../shared/i18n');
 

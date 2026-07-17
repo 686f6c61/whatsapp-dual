@@ -12,17 +12,26 @@ const crypto = require('node:crypto');
 const { app, dialog, safeStorage } = require('electron');
 
 // ---------------------------------------------------------------------------
-// Store (injected via initStore)
+// Dependencies injected from the facade
 // ---------------------------------------------------------------------------
 let store = null;
+let _secureDeleteAllSessions = null;
 
 /**
- * Inject the shared electron-store instance.
+ * Inject dependencies from the facade.
  *
- * @param {object} sharedStore - The electron-store instance
+ * secureDeleteAllSessions is injected (rather than required) to avoid a
+ * circular dependency with session-protection.js.
+ *
+ * @param {object} deps
+ * @param {object}   deps.store - The electron-store instance
+ * @param {Function} [deps.secureDeleteAllSessions] - Paranoia-mode session wipe
  */
-function initStore(sharedStore) {
-  store = sharedStore;
+function inject(deps) {
+  store = deps.store;
+  if (deps.secureDeleteAllSessions) {
+    _secureDeleteAllSessions = deps.secureDeleteAllSessions;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -38,6 +47,12 @@ const SECURITY_DEFAULTS = {
   lockoutDuration: 30, // minutes
   deleteOnMaxAttempts: false // paranoia mode
 };
+
+// PBKDF2-SHA512 work factor (OWASP baseline). Records created before the
+// iterations field existed used LEGACY_PBKDF2_ITERATIONS and are upgraded
+// transparently on the next successful verification.
+const PBKDF2_ITERATIONS = 210000;
+const LEGACY_PBKDF2_ITERATIONS = 100000;
 
 const DELAY_SCHEDULE = [
   { attempts: 3, delay: 0 },
@@ -56,10 +71,25 @@ const DELAY_SCHEDULE = [
  *
  * @param {string} pin - The PIN to hash
  * @param {string} salt - The salt for hashing
+ * @param {number} [iterations] - PBKDF2 iteration count (defaults to current work factor)
  * @returns {string} The hashed PIN as hex string
  */
-function hashPIN(pin, salt) {
-  return crypto.pbkdf2Sync(pin, salt, 100000, 64, 'sha512').toString('hex');
+function hashPIN(pin, salt, iterations = PBKDF2_ITERATIONS) {
+  return crypto.pbkdf2Sync(pin, salt, iterations, 64, 'sha512').toString('hex');
+}
+
+/**
+ * Compare two hex-encoded hashes in constant time.
+ *
+ * @param {string} a - Hex hash
+ * @param {string} b - Hex hash
+ * @returns {boolean} True if equal
+ */
+function hashesMatch(a, b) {
+  const bufA = Buffer.from(a, 'hex');
+  const bufB = Buffer.from(b, 'hex');
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 }
 
 /**
@@ -81,6 +111,23 @@ function isPINEnabled() {
 }
 
 /**
+ * Persist a PIN record, encrypted via the OS keychain when available.
+ *
+ * @param {{salt: string, hash: string, iterations: number}} record - PIN record
+ */
+function persistPinRecord(record) {
+  const pinData = JSON.stringify(record);
+
+  if (safeStorage.isEncryptionAvailable()) {
+    const encrypted = safeStorage.encryptString(pinData);
+    store.set('security.pinData', encrypted.toString('base64'));
+  } else {
+    // Fallback: store with basic obfuscation (less secure)
+    store.set('security.pinData', Buffer.from(pinData).toString('base64'));
+  }
+}
+
+/**
  * Set up a new PIN.
  *
  * @param {string} pin - The PIN to set (4-8 digits)
@@ -95,17 +142,7 @@ function setPIN(pin) {
     const salt = crypto.randomBytes(32).toString('hex');
     const hash = hashPIN(pin, salt);
 
-    // Use safeStorage to encrypt the PIN data (uses OS keychain)
-    const pinData = JSON.stringify({ salt, hash });
-
-    if (safeStorage.isEncryptionAvailable()) {
-      const encrypted = safeStorage.encryptString(pinData);
-      store.set('security.pinData', encrypted.toString('base64'));
-    } else {
-      // Fallback: store with basic obfuscation (less secure)
-      store.set('security.pinData', Buffer.from(pinData).toString('base64'));
-    }
-
+    persistPinRecord({ salt, hash, iterations: PBKDF2_ITERATIONS });
     store.set('security.pinEnabled', true);
     resetFailedAttempts();
 
@@ -150,10 +187,19 @@ function verifyPIN(pin) {
     }
 
     const { salt, hash } = pinData;
-    const inputHash = hashPIN(pin, salt);
+    const iterations = pinData.iterations || LEGACY_PBKDF2_ITERATIONS;
+    const inputHash = hashPIN(pin, salt, iterations);
 
-    if (inputHash === hash) {
-      // Success
+    if (hashesMatch(inputHash, hash)) {
+      // Success — upgrade records still using an outdated work factor
+      if (iterations !== PBKDF2_ITERATIONS) {
+        const newSalt = crypto.randomBytes(32).toString('hex');
+        persistPinRecord({
+          salt: newSalt,
+          hash: hashPIN(pin, newSalt),
+          iterations: PBKDF2_ITERATIONS,
+        });
+      }
       resetFailedAttempts();
       return { success: true };
     } else {
@@ -227,17 +273,8 @@ function getDelayForAttempts(attempts) {
 /**
  * Handle a failed PIN attempt.
  *
- * NOTE: secureDeleteAllSessions is injected lazily from the facade to
- * avoid a circular dependency with session-protection.js.
- *
  * @returns {object} Result object with attempt info
  */
-let _secureDeleteAllSessions = null;
-
-function setSecureDeleteAllSessions(fn) {
-  _secureDeleteAllSessions = fn;
-}
-
 function handleFailedAttempt() {
   const attempts = store.get('security.failedAttempts', 0) + 1;
   const maxAttempts = store.get('security.maxAttempts', SECURITY_DEFAULTS.maxAttempts);
@@ -321,7 +358,7 @@ function resetFailedAttempts() {
 // Exports
 // ---------------------------------------------------------------------------
 module.exports = {
-  initStore,
+  inject,
   SECURITY_DEFAULTS,
   DELAY_SCHEDULE,
 
@@ -339,7 +376,4 @@ module.exports = {
   handleFailedAttempt,
   checkLockout,
   resetFailedAttempts,
-
-  // Wiring helper (called by facade)
-  setSecureDeleteAllSessions,
 };

@@ -43,7 +43,7 @@ The following areas are in scope for security reports:
 
 WhatsApp Dual implements the following security measures:
 
-- **PIN hashing**: PBKDF2-SHA512 with 100,000 iterations and 32-byte random salt
+- **PIN hashing**: PBKDF2-SHA512 with 210,000 iterations (OWASP baseline) and 32-byte random salt; constant-time hash comparison via `crypto.timingSafeEqual`. Records created before v1.5.3 with 100,000 iterations are upgraded transparently on the next successful unlock
 - **PIN storage**: OS keychain via Electron safeStorage (libsecret on Linux)
 - **Session isolation**: Separate Chromium partitions (`persist:whatsapp-personal`, `persist:whatsapp-business`)
 - **Sandboxing**: All renderer processes run with `sandbox: true` and `contextIsolation: true`
@@ -56,3 +56,4 @@ WhatsApp Dual implements the following security measures:
 - **Sandbox compatibility fallback**: The app enables Chromium sandboxing by default. On Linux configurations where the sandbox cannot initialise, users can still launch manually with `--no-sandbox`, but this reduces renderer isolation.
 - **PIN fallback without safeStorage**: When the OS keychain is unavailable, PIN data is stored as base64-encoded JSON. This is not encryption -- an attacker with file access could extract the hash. The PIN hash itself is still PBKDF2, so offline brute-force is throttled but feasible for short PINs.
 - **PIN numeric only**: PINs are restricted to 4-8 digits. Against a PBKDF2 hash extracted offline, the keyspace (10^4 to 10^8) is exhaustible.
+- **Unsigned Linux artifacts**: Auto-update integrity relies on HTTPS to GitHub Releases plus the SHA512 checksum published in `latest-linux.yml`. Linux artifacts (AppImage/deb/snap) carry no cryptographic code signature, so a compromise of the release channel would not be detected by signature verification. Secure deletion of session files is also best-effort on SSDs and journaling filesystems, where overwritten blocks may persist.

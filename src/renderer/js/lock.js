@@ -41,31 +41,13 @@ const lockIcon = document.querySelector('.lock-icon');
 
 /**
  * Retrieves a translated string by dot-notation key.
+ * Delegates to the shared helper loaded from js/i18n-helper.js.
  *
  * @param {string} key - Dot-notation key
  * @param {string} [fallback] - Fallback if key not found
  * @returns {string}
  */
-function t(key, fallback) {
-  const parts = key.split('.');
-  let current = translations;
-  for (const part of parts) {
-    if (current == null || typeof current !== 'object' || !Object.hasOwn(current, part)) {
-      if (fallback !== undefined) {
-        return fallback;
-      }
-      return key;
-    }
-    current = current[part];
-  }
-  if (typeof current === 'string') {
-    return current;
-  }
-  if (fallback !== undefined) {
-    return fallback;
-  }
-  return key;
-}
+const t = (key, fallback) => translate(translations, key, fallback);
 
 /**
  * Applies loaded translations to static DOM elements.

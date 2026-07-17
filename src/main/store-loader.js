@@ -1,4 +1,10 @@
 /**
+ * WhatsApp Dual - Store Loader Module
+ *
+ * @author 686f6c61
+ * @license MIT
+ * @repository https://github.com/686f6c61/whatsapp-dual
+ *
  * Resolves the electron-store constructor across CommonJS/ESM interop shapes.
  *
  * In development `require('electron-store')` usually returns `{ default: Store }`,

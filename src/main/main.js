@@ -25,7 +25,7 @@
 const { app, BrowserWindow } = require('electron');
 const ElectronStore = require('electron-store');
 const { ACCOUNTS } = require('../shared/constants');
-const { createTray, destroyTray, updateContextMenu } = require('./tray');
+const { createTray, destroyTray, updateContextMenu, setNotificationState } = require('./tray');
 const { createMenu } = require('./menu');
 const i18n = require('../shared/i18n');
 const updater = require('./updater');
@@ -72,7 +72,9 @@ function rebuildMenus() {
     openAbout: () => windowManager.createAboutWindow(app),
     mainWindow,
     quit: () => windowManager.quitApp(app),
-    reload: () => viewManager.reloadActiveView()
+    reload: () => viewManager.reloadActiveView(),
+    security,
+    updater
   });
   updateContextMenu();
 }
@@ -113,6 +115,9 @@ function initializeWindow() {
 
   // Check for updates on startup (silent)
   updater.checkForUpdates(true);
+
+  // Wire unread-badge notifications to the tray (keeps view-manager decoupled)
+  viewManager.setOnUnreadChanged(setNotificationState);
 
   // Create WebContentsViews for each WhatsApp account
   viewManager.createWhatsAppViews();

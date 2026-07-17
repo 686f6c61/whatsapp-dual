@@ -84,6 +84,8 @@ whatsapp-dual/
 │   │   ├── menu.js             # Application menu creation
 │   │   ├── tray.js             # System tray integration
 │   │   ├── updater.js          # Auto-update functionality
+│   │   ├── help.js             # Help and troubleshooting dialogs
+│   │   ├── store-loader.js     # electron-store constructor resolution
 │   │   ├── preload-settings.js # Settings window preload
 │   │   ├── preload-lock.js     # Lock screen preload
 │   │   └── preload-whatsapp.js # Activity bridge for WhatsApp views
@@ -93,6 +95,7 @@ whatsapp-dual/
 │   │   ├── lock.html           # Lock screen
 │   │   ├── lock-setup.html     # PIN setup screen
 │   │   ├── js/
+│   │   │   ├── i18n-helper.js  # Shared translation lookup (t() helper)
 │   │   │   ├── settings.js     # Settings window logic
 │   │   │   ├── lock.js         # Lock screen logic
 │   │   │   └── lock-setup.js   # PIN setup logic
@@ -107,8 +110,14 @@ whatsapp-dual/
 ├── tests/                      # Unit tests (Vitest)
 │   ├── setup.js                # Test setup (Electron mocks)
 │   ├── security.test.js        # Security module tests
+│   ├── security-ipc.test.js    # IPC sender validation tests
+│   ├── pin-hardening.test.js   # PBKDF2 work factor and migration tests
 │   ├── lock-controller.test.js # Auto-lock timer tests
-│   ├── session-protection.test.js # Session traversal tests
+│   ├── session-protection.test.js # Secure delete and integrity tests
+│   ├── store-loader.test.js    # electron-store export shape tests
+│   ├── ipc-handlers.test.js    # i18n path traversal regression tests
+│   ├── i18n-helper.test.js     # Renderer translation helper tests
+│   ├── menu.test.js            # Menu dependency injection tests
 │   └── view-manager.test.js    # Permission allowlist tests
 │
 ├── locales/                    # Translation files

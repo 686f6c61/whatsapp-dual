@@ -5,6 +5,29 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-07-17
+
+### Security
+
+- **PIN hardening**: Raised PBKDF2-SHA512 from 100,000 to 210,000 iterations (OWASP baseline); existing PINs are upgraded transparently on the next successful unlock. PIN hash comparison now uses constant-time `crypto.timingSafeEqual`
+- **Dependency audit**: Resolved all 15 vulnerabilities reported by `npm audit` in development tooling (undici, vite/vitest, tar, tmp, brace-expansion chains); raised the `vite` override to `8.0.16` and the `brace-expansion` override to `5.0.7`, both of which had drifted back into vulnerable ranges. Note: `npm audit` results are dynamic — the "clean report" noted in 1.5.2 was accurate at release time but new advisories were published afterwards
+- **Documented limitations**: SECURITY.md now covers the lack of cryptographic signatures on Linux artifacts (integrity relies on HTTPS plus SHA512 checksums) and the best-effort nature of secure deletion on SSDs/journaling filesystems
+
+### Fixed
+
+- **Settings contract**: `security:saveSettings` no longer reports success when asked to enable the PIN while none is configured; the renderer is now told the payload was not fully applied
+- **Accessibility**: Added an accessible label to the PIN input on the lock and PIN setup screens
+
+### Changed
+
+- **Decoupling**: `view-manager` now notifies unread-badge changes through a callback injected from `main.js` instead of requiring the tray module; the application menu receives `security` and `updater` as injected dependencies; the security sub-modules share a single `inject()` dependency-injection pattern
+- **Shared renderer i18n**: The translation helper `t()` used by the settings, lock, and PIN setup pages now lives in a single shared script (`js/i18n-helper.js`) instead of three duplicated copies
+
+### Added
+
+- **Regression tests**: 36 new tests (32 → 68), including the i18n path traversal fix, secure deletion, session integrity verification, IPC sender validation, PBKDF2 migration, and menu dependency injection
+- **Coverage tooling**: Installed `@vitest/coverage-v8` so the coverage configuration in `vitest.config.js` is actually runnable (`npx vitest run --coverage`); first measured baseline is 18% of lines
+
 ## [1.5.2] - 2026-04-29
 
 ### Fixed

@@ -23,8 +23,6 @@
 
 const { Menu, app } = require('electron');
 const i18n = require('../shared/i18n');
-const updater = require('./updater');
-const security = require('./security');
 const help = require('./help');
 
 // =============================================================================
@@ -51,9 +49,11 @@ const help = require('./help');
  * @param {BrowserWindow} options.mainWindow - Reference to the main window
  * @param {Function} options.quit - Callback to quit the application
  * @param {Function} options.reload - Callback to reload the active view
+ * @param {object} options.security - Security module (isPINEnabled, lockApp)
+ * @param {object} options.updater - Updater module (getUpdateInfo, isUpdateAvailable, showUpdateDialog, checkForUpdatesManual)
  * @returns {void}
  */
-function createMenu({ switchAccount: switchAccountFn, openSettings: openSettingsFn, openAbout: openAboutFn, mainWindow, quit: quitFn, reload: reloadFn }) {
+function createMenu({ switchAccount: switchAccountFn, openSettings: openSettingsFn, openAbout: openAboutFn, mainWindow, quit: quitFn, reload: reloadFn, security, updater }) {
   const availableUpdate = updater.getUpdateInfo();
   const updateLabel = availableUpdate?.version
     ? `● ${i18n.t('updates.updateAvailable', 'Update available!')} · v${availableUpdate.version}`

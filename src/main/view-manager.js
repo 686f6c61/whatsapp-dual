@@ -18,7 +18,6 @@
 const { WebContentsView, shell } = require('electron');
 const path = require('node:path');
 const { WHATSAPP_URL, ACCOUNTS } = require('../shared/constants');
-const { setNotificationState } = require('./tray');
 
 // =============================================================================
 // State
@@ -29,6 +28,23 @@ let views = {};
 
 /** @type {string} Currently active account ID */
 let currentAccount = ACCOUNTS.PERSONAL.id;
+
+/**
+ * Callback invoked with a boolean whenever the unread state is re-evaluated.
+ * Injected from main.js (usually tray.setNotificationState) so this module
+ * stays decoupled from the tray UI.
+ * @type {(hasUnread: boolean) => void}
+ */
+let onUnreadChanged = () => {};
+
+/**
+ * Inject the unread-state callback.
+ *
+ * @param {(hasUnread: boolean) => void} fn - Callback receiving the unread flag
+ */
+function setOnUnreadChanged(fn) {
+  onUnreadChanged = typeof fn === 'function' ? fn : () => {};
+}
 
 /**
  * Custom User-Agent string to avoid WhatsApp Web blocking.
@@ -121,7 +137,7 @@ function checkForUnreadMessages() {
     }
   });
 
-  setNotificationState(hasUnread);
+  onUnreadChanged(hasUnread);
 }
 
 // =============================================================================
@@ -382,5 +398,6 @@ module.exports = {
   setupExternalLinkHandler,
   setupPermissionHandlers,
   setupDownloadHandler,
-  checkForUnreadMessages
+  checkForUnreadMessages,
+  setOnUnreadChanged
 };

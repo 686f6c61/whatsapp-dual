@@ -21,6 +21,10 @@ const electronMock = {
   },
   powerMonitor: { on: () => {} },
   ipcMain: { handle: () => {}, on: () => {} },
+  Menu: {
+    buildFromTemplate: (template) => ({ template }),
+    setApplicationMenu: (menu) => { electronMock.__lastAppliedMenu = menu; },
+  },
   shell: { openExternal: () => Promise.resolve() },
   safeStorage: {
     isEncryptionAvailable: () => false,

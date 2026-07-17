@@ -37,13 +37,14 @@ let store = null;
 function initStore(sharedStore) {
   store = sharedStore;
 
-  // 1) PIN manager gets the store first (other modules depend on it)
-  pinManager.initStore(sharedStore);
+  // 1) PIN manager gets the store first (other modules depend on it);
+  //    paranoia mode calls secureDeleteAllSessions from session-protection
+  pinManager.inject({
+    store: sharedStore,
+    secureDeleteAllSessions: sessionProtection.secureDeleteAllSessions,
+  });
 
-  // 2) Wire cross-dependency: pin-manager's paranoia mode calls secureDeleteAllSessions
-  pinManager.setSecureDeleteAllSessions(sessionProtection.secureDeleteAllSessions);
-
-  // 3) Lock controller needs PIN helpers + store + defaults
+  // 2) Lock controller needs PIN helpers + store + defaults
   lockController.inject({
     isPINEnabled: pinManager.isPINEnabled,
     verifyPIN: pinManager.verifyPIN,
@@ -51,7 +52,7 @@ function initStore(sharedStore) {
     SECURITY_DEFAULTS: pinManager.SECURITY_DEFAULTS,
   });
 
-  // 4) Session protection needs store + resetFailedAttempts
+  // 3) Session protection needs store + resetFailedAttempts
   sessionProtection.inject({
     store: sharedStore,
     resetFailedAttempts: pinManager.resetFailedAttempts,
@@ -145,7 +146,7 @@ function registerIPCHandlers(getWindows) {
       }
     }
 
-    return authorizedContents.some(contents => contents === event.sender);
+    return authorizedContents.includes(event.sender);
   }
   // PIN operations (read-only — no sender validation needed)
   ipcMain.handle('security:isPINSet', () => pinManager.isPINSet());
@@ -202,17 +203,20 @@ function registerIPCHandlers(getWindows) {
   ipcMain.handle('security:saveSettings', (event, settings) => {
     if (!validateSender(event)) return false;
     if (typeof settings !== 'object' || settings === null) return false;
-    // Handle pinEnabled separately (can only disable if PIN is set)
+    // Handle pinEnabled separately (can only enable if a PIN is set)
+    let pinEnabledApplied = true;
     if (Object.hasOwn(settings, 'pinEnabled')) {
       if (settings.pinEnabled && !pinManager.isPINSet()) {
-        // Can't enable PIN if not set - will be handled by UI
+        pinEnabledApplied = false;
       } else {
         store.set('security.pinEnabled', settings.pinEnabled);
       }
     }
     // Update other settings
     updateSecuritySettings(settings);
-    return true;
+    // Report failure if part of the payload could not be applied so the
+    // renderer never believes an ignored pinEnabled request was saved
+    return pinEnabledApplied;
   });
 
   // Reset (mutating — validate sender)

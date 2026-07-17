@@ -52,34 +52,13 @@ let translations = {};
 
 /**
  * Retrieves a translated string for the given dot-notation key.
- *
- * Traverses the module-level `translations` object using the key segments.
- * Returns the fallback (or the key itself) when the lookup fails.
+ * Delegates to the shared helper loaded from js/i18n-helper.js.
  *
  * @param {string} key   - Dot-notation translation key, e.g. "settings.title"
  * @param {string} [fallback] - Value to return when the key is not found
  * @returns {string} The translated string or the fallback / key
  */
-function t(key, fallback) {
-  const parts = key.split('.');
-  let current = translations;
-  for (const part of parts) {
-    if (current == null || typeof current !== 'object' || !Object.hasOwn(current, part)) {
-      if (fallback !== undefined) {
-        return fallback;
-      }
-      return key;
-    }
-    current = current[part];
-  }
-  if (typeof current === 'string') {
-    return current;
-  }
-  if (fallback !== undefined) {
-    return fallback;
-  }
-  return key;
-}
+const t = (key, fallback) => translate(translations, key, fallback);
 
 /**
  * Applies translations to all elements with a data-i18n attribute.

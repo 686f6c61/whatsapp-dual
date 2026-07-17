@@ -11,6 +11,18 @@ describe('view-manager permission allowlist', () => {
   });
 });
 
+describe('view-manager unread notification decoupling', () => {
+  it('reports unread state through the injected callback instead of requiring tray directly', () => {
+    const calls = [];
+    viewManager.setOnUnreadChanged((hasUnread) => calls.push(hasUnread));
+
+    // No views exist in the test environment, so unread must be false
+    viewManager.checkForUnreadMessages();
+
+    expect(calls).toEqual([false]);
+  });
+});
+
 describe('view-manager bounds', () => {
   it('uses the root contentView bounds when available', () => {
     const mainWindow = {
