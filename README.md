@@ -2,6 +2,8 @@
 
 Use WhatsApp Personal and WhatsApp Business simultaneously in a single desktop application for Linux. WhatsApp Dual provides a seamless experience for users who need to manage both personal and business communications without the hassle of switching between browser tabs or using multiple devices.
 
+![WhatsApp Dual running on Ubuntu](screenshots/whatsapp-dual-ubuntu.png)
+
 ## Features
 
 WhatsApp Dual is designed to enhance productivity for users who rely on both WhatsApp Personal and WhatsApp Business. Each feature has been carefully implemented to provide a native desktop experience that integrates smoothly with your Linux workflow.
@@ -68,10 +70,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.5.4_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.5.5_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.5.4_amd64.deb
+sudo dpkg -i whatsapp-dual_1.5.5_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -83,13 +85,13 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.5.4-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.5.5-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.5.4-x86_64.AppImage
+chmod +x WhatsAppDual-1.5.5-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.5.4-x86_64.AppImage
+./WhatsAppDual-1.5.5-x86_64.AppImage
 ```
 
 ### Option 3: Build from Source

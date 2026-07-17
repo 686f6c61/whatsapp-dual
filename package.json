@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-dual",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "description": "WhatsApp Personal and Business in a single desktop app",
   "main": "src/main/main.js",
   "author": {
