@@ -29,6 +29,7 @@ const { autoUpdater } = require('electron-updater');
 const { app, dialog, Notification } = require('electron');
 const i18n = require('../shared/i18n');
 const help = require('./help');
+const logger = require('../shared/logger');
 
 const APP_ICON_PATH = path.join(__dirname, '../../assets/icons/icon.png');
 
@@ -36,14 +37,15 @@ const APP_ICON_PATH = path.join(__dirname, '../../assets/icons/icon.png');
 // Module State
 // =============================================================================
 
-/** @type {boolean} Whether an update is available */
-let updateAvailable = false;
+const state = {
+  /** @type {boolean} Whether an update is available */
+  updateAvailable: false,
+  /** @type {object|null} Info about the available update */
+  updateInfo: null,
+  /** @type {Function|null} Callback fired when update status changes */
+  onUpdateStatusChange: null,
+};
 
-/** @type {Object|null} Information about the available update */
-let updateInfo = null;
-
-/** @type {Function|null} Callback for update status changes */
-let onUpdateStatusChange = null;
 
 // =============================================================================
 // Auto-Updater Configuration
@@ -139,11 +141,11 @@ function checkForUpdatesManual(mainWindow) {
 
   autoUpdater.checkForUpdates().then(result => {
     if (result?.updateInfo && result.updateInfo.version !== app.getVersion()) {
-      updateAvailable = true;
-      updateInfo = result.updateInfo;
+      state.updateAvailable = true;
+      state.updateInfo = result.updateInfo;
 
-      if (onUpdateStatusChange) {
-        onUpdateStatusChange(true, result.updateInfo);
+      if (state.onUpdateStatusChange) {
+        state.onUpdateStatusChange(true, result.updateInfo);
       }
 
       showUpdateDialog(mainWindow);
@@ -181,7 +183,7 @@ function checkForUpdatesManual(mainWindow) {
  * Fired when update check starts.
  */
 autoUpdater.on('checking-for-update', () => {
-  console.log('Checking for updates...');
+  logger.debug('Checking for updates...');
 });
 
 /**
@@ -190,13 +192,13 @@ autoUpdater.on('checking-for-update', () => {
  * Updates module state, notifies callback, and shows desktop notification.
  */
 autoUpdater.on('update-available', (info) => {
-  console.log('Update available:', info.version);
-  updateAvailable = true;
-  updateInfo = info;
+  logger.debug('Update available:', info.version);
+  state.updateAvailable = true;
+  state.updateInfo = info;
 
   // Notify callback to update menu/tray with indicator
-  if (onUpdateStatusChange) {
-    onUpdateStatusChange(true, info);
+  if (state.onUpdateStatusChange) {
+    state.onUpdateStatusChange(true, info);
   }
 
   // Show desktop notification if supported
@@ -214,12 +216,12 @@ autoUpdater.on('update-available', (info) => {
  * Fired when no updates are available.
  */
 autoUpdater.on('update-not-available', (info) => {
-  console.log('No updates available');
-  updateAvailable = false;
-  updateInfo = null;
+  logger.debug('No updates available');
+  state.updateAvailable = false;
+  state.updateInfo = null;
 
-  if (onUpdateStatusChange) {
-    onUpdateStatusChange(false, null);
+  if (state.onUpdateStatusChange) {
+    state.onUpdateStatusChange(false, null);
   }
 });
 
@@ -234,7 +236,7 @@ autoUpdater.on('error', (err) => {
  * Fired during update download with progress information.
  */
 autoUpdater.on('download-progress', (progressObj) => {
-  console.log(`Download progress: ${progressObj.percent}%`);
+  logger.debug(`Download progress: ${progressObj.percent}%`);
 });
 
 /**
@@ -243,7 +245,7 @@ autoUpdater.on('download-progress', (progressObj) => {
  * Prompts user to restart the app to install the update.
  */
 autoUpdater.on('update-downloaded', (info) => {
-  console.log('Update downloaded');
+  logger.debug('Update downloaded');
 
   dialog.showMessageBox({
     type: 'info',
@@ -273,7 +275,7 @@ autoUpdater.on('update-downloaded', (info) => {
  * @returns {void}
  */
 function downloadUpdate() {
-  if (updateAvailable && isAutoUpdaterSupported()) {
+  if (state.updateAvailable && isAutoUpdaterSupported()) {
     autoUpdater.downloadUpdate();
   }
 }
@@ -292,13 +294,13 @@ function downloadUpdate() {
  * @returns {void}
  */
 function showUpdateDialog(mainWindow) {
-  if (updateAvailable && updateInfo) {
+  if (state.updateAvailable && state.updateInfo) {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: i18n.t('updates.title', 'Updates'),
       message: i18n.t('updates.newVersion', 'New version available'),
       icon: APP_ICON_PATH,
-      detail: `${i18n.t('updates.currentVersion', 'Current version')}: ${app.getVersion()}\n${i18n.t('updates.availableVersion', 'Available version')}: ${updateInfo.version}`,
+      detail: `${i18n.t('updates.currentVersion', 'Current version')}: ${app.getVersion()}\n${i18n.t('updates.availableVersion', 'Available version')}: ${state.updateInfo.version}`,
       buttons: [i18n.t('updates.download', 'Download'), i18n.t('menu.changelog', 'Changelog'), i18n.t('updates.later', 'Later')]
     }).then(result => {
       if (result.response === 0) {
@@ -340,7 +342,7 @@ function showUpdateDialog(mainWindow) {
  * @returns {void}
  */
 function setUpdateStatusCallback(callback) {
-  onUpdateStatusChange = callback;
+  state.onUpdateStatusChange = callback;
 }
 
 // =============================================================================
@@ -353,11 +355,11 @@ function setUpdateStatusCallback(callback) {
  * @returns {boolean} True if update available
  */
 function isUpdateAvailable() {
-  return updateAvailable;
+  return state.updateAvailable;
 }
 
 function getUpdateInfo() {
-  return updateInfo;
+  return state.updateInfo;
 }
 
 // =============================================================================

@@ -325,11 +325,12 @@ async function savePIN() {
         globalThis.electronAPI.security.pinSetupComplete();
       }, 500);
     } else {
-      showStatus(t('setup.pinSetFailed', 'Failed to set PIN. Try again.'), 'error');
       step = 1;
       firstPIN = '';
       updateStepUI();
       clearPIN();
+      // Show the failure after clearPIN(), which wipes the status message
+      showStatus(t('setup.pinSetFailed', 'Failed to set PIN. Try again.'), 'error');
     }
   } catch (error) {
     console.error('Error setting PIN:', error);

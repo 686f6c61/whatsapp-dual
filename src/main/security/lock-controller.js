@@ -11,39 +11,43 @@
 const { powerMonitor } = require('electron');
 
 // ---------------------------------------------------------------------------
-// Dependencies injected from outside
+// Dependencies injected from outside (single container, set via inject())
 // ---------------------------------------------------------------------------
-let _isPINEnabled = null;
-let _verifyPIN = null;
-let _store = null;
-let _SECURITY_DEFAULTS = null;
+const deps = {
+  isPINEnabled: null,
+  verifyPIN: null,
+  store: null,
+  SECURITY_DEFAULTS: null,
+};
 
 /**
  * Inject dependencies from the facade so this module stays decoupled
  * from pin-manager.js (no circular require).
  *
- * @param {object} deps
- * @param {Function} deps.isPINEnabled
- * @param {Function} deps.verifyPIN
- * @param {object}   deps.store
- * @param {object}   deps.SECURITY_DEFAULTS
+ * @param {object} injected
+ * @param {Function} injected.isPINEnabled
+ * @param {Function} injected.verifyPIN
+ * @param {object}   injected.store
+ * @param {object}   injected.SECURITY_DEFAULTS
  */
-function inject(deps) {
-  _isPINEnabled = deps.isPINEnabled;
-  _verifyPIN = deps.verifyPIN;
-  _store = deps.store;
-  _SECURITY_DEFAULTS = deps.SECURITY_DEFAULTS;
+function inject(injected) {
+  deps.isPINEnabled = injected.isPINEnabled;
+  deps.verifyPIN = injected.verifyPIN;
+  deps.store = injected.store;
+  deps.SECURITY_DEFAULTS = injected.SECURITY_DEFAULTS;
 }
 
 // ---------------------------------------------------------------------------
-// State
+// Module state (single container)
 // ---------------------------------------------------------------------------
-let lockTimer = null;
-let isLocked = false;
-let mainWindowRef = null;
-let onLockCallback = null;
-let onUnlockCallback = null;
-let powerMonitorInitialized = false;
+const state = {
+  lockTimer: null,
+  isLocked: false,
+  mainWindowRef: null,
+  onLockCallback: null,
+  onUnlockCallback: null,
+  powerMonitorInitialized: false,
+};
 
 // ---------------------------------------------------------------------------
 // Auto-lock
@@ -57,22 +61,22 @@ let powerMonitorInitialized = false;
  * @param {Function} onUnlock - Callback when app unlocks
  */
 function initAutoLock(mainWindow, onLock, onUnlock) {
-  mainWindowRef = mainWindow;
-  onLockCallback = onLock;
-  onUnlockCallback = onUnlock;
+  state.mainWindowRef = mainWindow;
+  state.onLockCallback = onLock;
+  state.onUnlockCallback = onUnlock;
 
   // System power events (register once, check settings at event time)
-  if (!powerMonitorInitialized) {
-    powerMonitorInitialized = true;
+  if (!state.powerMonitorInitialized) {
+    state.powerMonitorInitialized = true;
 
     powerMonitor.on('suspend', () => {
-      if (_isPINEnabled() && _store.get('security.lockOnSuspend', _SECURITY_DEFAULTS.lockOnSuspend)) {
+      if (deps.isPINEnabled() && deps.store.get('security.lockOnSuspend', deps.SECURITY_DEFAULTS.lockOnSuspend)) {
         lockApp();
       }
     });
 
     powerMonitor.on('lock-screen', () => {
-      if (_isPINEnabled() && _store.get('security.lockOnScreenLock', _SECURITY_DEFAULTS.lockOnScreenLock)) {
+      if (deps.isPINEnabled() && deps.store.get('security.lockOnScreenLock', deps.SECURITY_DEFAULTS.lockOnScreenLock)) {
         lockApp();
       }
     });
@@ -86,20 +90,20 @@ function initAutoLock(mainWindow, onLock, onUnlock) {
  * Reset the auto-lock timer.
  */
 function resetLockTimer() {
-  clearTimeout(lockTimer);
-  lockTimer = null;
+  clearTimeout(state.lockTimer);
+  state.lockTimer = null;
 
-  if (!_store.get('security.autoLockEnabled', _SECURITY_DEFAULTS.autoLockEnabled)) {
+  if (!deps.store.get('security.autoLockEnabled', deps.SECURITY_DEFAULTS.autoLockEnabled)) {
     return;
   }
 
-  if (!_isPINEnabled()) {
+  if (!deps.isPINEnabled()) {
     return;
   }
 
-  const timeout = _store.get('security.autoLockTimeout', _SECURITY_DEFAULTS.autoLockTimeout) * 60 * 1000;
+  const timeout = deps.store.get('security.autoLockTimeout', deps.SECURITY_DEFAULTS.autoLockTimeout) * 60 * 1000;
 
-  lockTimer = setTimeout(() => {
+  state.lockTimer = setTimeout(() => {
     lockApp();
   }, timeout);
 }
@@ -108,16 +112,16 @@ function resetLockTimer() {
  * Lock the application.
  */
 function lockApp() {
-  if (isLocked || !_isPINEnabled()) {
+  if (state.isLocked || !deps.isPINEnabled()) {
     return;
   }
 
-  isLocked = true;
-  clearTimeout(lockTimer);
-  lockTimer = null;
+  state.isLocked = true;
+  clearTimeout(state.lockTimer);
+  state.lockTimer = null;
 
-  if (onLockCallback) {
-    onLockCallback();
+  if (state.onLockCallback) {
+    state.onLockCallback();
   }
 }
 
@@ -128,14 +132,14 @@ function lockApp() {
  * @returns {object} Result of unlock attempt
  */
 function unlockApp(pin) {
-  const result = _verifyPIN(pin);
+  const result = deps.verifyPIN(pin);
 
   if (result.success) {
-    isLocked = false;
+    state.isLocked = false;
     resetLockTimer();
 
-    if (onUnlockCallback) {
-      onUnlockCallback();
+    if (state.onUnlockCallback) {
+      state.onUnlockCallback();
     }
   }
 
@@ -148,7 +152,7 @@ function unlockApp(pin) {
  * @returns {boolean} True if app is locked
  */
 function isAppLocked() {
-  return isLocked;
+  return state.isLocked;
 }
 
 // ---------------------------------------------------------------------------

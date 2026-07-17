@@ -18,32 +18,29 @@
 const { WebContentsView, shell } = require('electron');
 const path = require('node:path');
 const { WHATSAPP_URL, ACCOUNTS } = require('../shared/constants');
+const logger = require('../shared/logger');
 
 // =============================================================================
 // State
 // =============================================================================
 
-/** @type {Object.<string, WebContentsView>} WebContentsViews for each WhatsApp account */
-let views = {};
-
-/** @type {string} Currently active account ID */
-let currentAccount = ACCOUNTS.PERSONAL.id;
-
-/**
- * Callback invoked with a boolean whenever the unread state is re-evaluated.
- * Injected from main.js (usually tray.setNotificationState) so this module
- * stays decoupled from the tray UI.
- * @type {(hasUnread: boolean) => void}
- */
-let onUnreadChanged = () => {};
+const state = {
+  /** @type {Object.<string, WebContentsView>} Views per account */
+  views: {},
+  /** @type {string} Currently active account ID */
+  currentAccount: ACCOUNTS.PERSONAL.id,
+  /** @type {(hasUnread: boolean) => void} Injected unread callback */
+  onUnreadChanged: () => {},
+};
 
 /**
- * Inject the unread-state callback.
+ * Inject the unread-state callback (usually tray.setNotificationState),
+ * so this module stays decoupled from the tray UI.
  *
  * @param {(hasUnread: boolean) => void} fn - Callback receiving the unread flag
  */
 function setOnUnreadChanged(fn) {
-  onUnreadChanged = typeof fn === 'function' ? fn : () => {};
+  state.onUnreadChanged = typeof fn === 'function' ? fn : () => {};
 }
 
 /**
@@ -57,10 +54,10 @@ const USER_AGENT = `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, l
 // =============================================================================
 
 /** @returns {Object.<string, WebContentsView>} */
-function getViews() { return views; }
+function getViews() { return state.views; }
 
 /** @returns {string} */
-function getCurrentAccount() { return currentAccount; }
+function getCurrentAccount() { return state.currentAccount; }
 
 // =============================================================================
 // URL Validation Helpers
@@ -128,7 +125,7 @@ function checkForUnreadMessages() {
   const unreadPattern = /^\(\d+\)/;
   let hasUnread = false;
 
-  Object.values(views).forEach(view => {
+  Object.values(state.views).forEach(view => {
     if (view?.webContents) {
       const title = view.webContents.getTitle();
       if (unreadPattern.test(title)) {
@@ -137,7 +134,7 @@ function checkForUnreadMessages() {
     }
   });
 
-  onUnreadChanged(hasUnread);
+  state.onUnreadChanged(hasUnread);
 }
 
 // =============================================================================
@@ -182,17 +179,17 @@ function setupExternalLinkHandler(webContents) {
  */
 function setupDownloadHandler(webContents) {
   webContents.session.on('will-download', (event, item) => {
-    item.on('updated', (event, state) => {
-      if (state === 'interrupted') {
-        console.log(`Download interrupted: ${item.getFilename()}`);
+    item.on('updated', (event, downloadState) => {
+      if (downloadState === 'interrupted') {
+        logger.debug(`Download interrupted: ${item.getFilename()}`);
       }
     });
 
-    item.once('done', (event, state) => {
-      if (state === 'completed') {
-        console.log(`Download completed: ${item.getFilename()}`);
+    item.once('done', (event, downloadState) => {
+      if (downloadState === 'completed') {
+        logger.debug(`Download completed: ${item.getFilename()}`);
       } else {
-        console.log(`Download failed (${state}): ${item.getFilename()}`);
+        logger.debug(`Download failed (${downloadState}): ${item.getFilename()}`);
       }
     });
   });
@@ -259,8 +256,8 @@ function createAccountView(accountConfig) {
  * @returns {void}
  */
 function createWhatsAppViews() {
-  views.personal = createAccountView(ACCOUNTS.PERSONAL);
-  views.business = createAccountView(ACCOUNTS.BUSINESS);
+  state.views.personal = createAccountView(ACCOUNTS.PERSONAL);
+  state.views.business = createAccountView(ACCOUNTS.BUSINESS);
 }
 
 // =============================================================================
@@ -272,7 +269,7 @@ function createWhatsAppViews() {
  *
  * BrowserWindow.getContentSize() can be stale during the first Wayland layout
  * pass on Linux. The root contentView owns the actual available area for child
- * views, so prefer its current bounds and fall back only for older Electron
+ * state.views, so prefer its current bounds and fall back only for older Electron
  * shapes or mocks.
  *
  * @param {BrowserWindow} mainWindow - The main application window
@@ -305,7 +302,7 @@ function updateViewBounds(mainWindow) {
   const viewBounds = getWebContentsViewBounds(mainWindow);
   if (!viewBounds) return;
 
-  Object.values(views).forEach(view => {
+  Object.values(state.views).forEach(view => {
     view.setBounds(viewBounds);
   });
 }
@@ -318,19 +315,20 @@ function updateViewBounds(mainWindow) {
  * @returns {void}
  */
 function switchAccount(accountId, mainWindow) {
-  if (!mainWindow || !views[accountId]) return;
+  if (!mainWindow || !state.views[accountId]) return;
 
-  currentAccount = accountId;
+  state.currentAccount = accountId;
 
   // Remove all current views
   mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
 
   // Add new view
-  mainWindow.contentView.addChildView(views[accountId]);
+  mainWindow.contentView.addChildView(state.views[accountId]);
   updateViewBounds(mainWindow);
 
   // Update window title
-  const accountName = accountId === 'personal' ? 'Personal' : 'Business';
+  const account = Object.values(ACCOUNTS).find(a => a.id === accountId);
+  const accountName = account ? account.name : accountId;
   mainWindow.setTitle(`WhatsApp Dual - ${accountName}`);
 }
 
@@ -340,14 +338,14 @@ function switchAccount(accountId, mainWindow) {
  * @returns {void}
  */
 function reloadActiveView() {
-  const view = views[currentAccount];
+  const view = state.views[state.currentAccount];
   if (view?.webContents) {
     view.webContents.reload();
   }
 }
 
 /**
- * Removes all child views from the main window's contentView.
+ * Removes all child state.views from the main window's contentView.
  *
  * @param {BrowserWindow} mainWindow - The main application window
  * @returns {void}
@@ -365,7 +363,7 @@ function removeAllViews(mainWindow) {
  * @returns {void}
  */
 function restoreCurrentView(mainWindow) {
-  const view = views[currentAccount];
+  const view = state.views[state.currentAccount];
   if (view && mainWindow) {
     mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
     mainWindow.contentView.addChildView(view);

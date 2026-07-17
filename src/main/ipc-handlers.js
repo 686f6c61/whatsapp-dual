@@ -22,6 +22,7 @@ const { ipcMain, app } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 const i18n = require('../shared/i18n');
+const { isAuthorizedSender } = require('./sender-validation');
 
 // =============================================================================
 // Settings Validation Helper
@@ -94,10 +95,12 @@ function registerIPCHandlers({ store, windowManager, viewManager, security, rebu
       main: windowManager.getMainWindow(),
     };
 
-    return allowedWindowNames.some(name => {
-      const win = windows[name];
-      return win && !win.isDestroyed() && win.webContents === event.sender;
-    });
+    const allowed = {};
+    for (const name of allowedWindowNames) {
+      allowed[name] = windows[name];
+    }
+
+    return isAuthorizedSender(event, allowed);
   }
 
   // ===========================================================================

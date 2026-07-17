@@ -14,8 +14,10 @@ const { app, dialog, safeStorage } = require('electron');
 // ---------------------------------------------------------------------------
 // Dependencies injected from the facade
 // ---------------------------------------------------------------------------
-let store = null;
-let _secureDeleteAllSessions = null;
+const deps = {
+  store: null,
+  secureDeleteAllSessions: null,
+};
 
 /**
  * Inject dependencies from the facade.
@@ -23,14 +25,14 @@ let _secureDeleteAllSessions = null;
  * secureDeleteAllSessions is injected (rather than required) to avoid a
  * circular dependency with session-protection.js.
  *
- * @param {object} deps
- * @param {object}   deps.store - The electron-store instance
- * @param {Function} [deps.secureDeleteAllSessions] - Paranoia-mode session wipe
+ * @param {object} injected
+ * @param {object}   injected.store - The electron-store instance
+ * @param {Function} [injected.secureDeleteAllSessions] - Paranoia-mode session wipe
  */
-function inject(deps) {
-  store = deps.store;
-  if (deps.secureDeleteAllSessions) {
-    _secureDeleteAllSessions = deps.secureDeleteAllSessions;
+function inject(injected) {
+  deps.store = injected.store;
+  if (injected.secureDeleteAllSessions) {
+    deps.secureDeleteAllSessions = injected.secureDeleteAllSessions;
   }
 }
 
@@ -98,7 +100,7 @@ function hashesMatch(a, b) {
  * @returns {boolean} True if PIN is configured
  */
 function isPINSet() {
-  return store.has('security.pinData');
+  return deps.store.has('security.pinData');
 }
 
 /**
@@ -107,7 +109,7 @@ function isPINSet() {
  * @returns {boolean} True if PIN is enabled
  */
 function isPINEnabled() {
-  return store.get('security.pinEnabled', false) && isPINSet();
+  return deps.store.get('security.pinEnabled', false) && isPINSet();
 }
 
 /**
@@ -120,10 +122,10 @@ function persistPinRecord(record) {
 
   if (safeStorage.isEncryptionAvailable()) {
     const encrypted = safeStorage.encryptString(pinData);
-    store.set('security.pinData', encrypted.toString('base64'));
+    deps.store.set('security.pinData', encrypted.toString('base64'));
   } else {
     // Fallback: store with basic obfuscation (less secure)
-    store.set('security.pinData', Buffer.from(pinData).toString('base64'));
+    deps.store.set('security.pinData', Buffer.from(pinData).toString('base64'));
   }
 }
 
@@ -143,7 +145,7 @@ function setPIN(pin) {
     const hash = hashPIN(pin, salt);
 
     persistPinRecord({ salt, hash, iterations: PBKDF2_ITERATIONS });
-    store.set('security.pinEnabled', true);
+    deps.store.set('security.pinEnabled', true);
     resetFailedAttempts();
 
     return true;
@@ -173,7 +175,7 @@ function verifyPIN(pin) {
     }
 
     // Get stored PIN data
-    const storedData = store.get('security.pinData');
+    const storedData = deps.store.get('security.pinData');
     if (!storedData) {
       return { success: false, message: 'PIN not set' };
     }
@@ -244,8 +246,8 @@ function removePIN(currentPIN) {
     return { success: false, message: 'PIN is incorrect' };
   }
 
-  store.delete('security.pinData');
-  store.set('security.pinEnabled', false);
+  deps.store.delete('security.pinData');
+  deps.store.set('security.pinEnabled', false);
   resetFailedAttempts();
 
   return { success: true };
@@ -276,17 +278,17 @@ function getDelayForAttempts(attempts) {
  * @returns {object} Result object with attempt info
  */
 function handleFailedAttempt() {
-  const attempts = store.get('security.failedAttempts', 0) + 1;
-  const maxAttempts = store.get('security.maxAttempts', SECURITY_DEFAULTS.maxAttempts);
+  const attempts = deps.store.get('security.failedAttempts', 0) + 1;
+  const maxAttempts = deps.store.get('security.maxAttempts', SECURITY_DEFAULTS.maxAttempts);
 
-  store.set('security.failedAttempts', attempts);
-  store.set('security.lastFailedAttempt', Date.now());
+  deps.store.set('security.failedAttempts', attempts);
+  deps.store.set('security.lastFailedAttempt', Date.now());
 
   const delay = getDelayForAttempts(attempts);
   const remaining = Math.max(0, maxAttempts - attempts);
 
   // Check if paranoia mode is enabled and max attempts reached
-  if (attempts >= maxAttempts && store.get('security.deleteOnMaxAttempts', false)) {
+  if (attempts >= maxAttempts && deps.store.get('security.deleteOnMaxAttempts', false)) {
     dialog.showMessageBox({
       type: 'warning',
       title: 'Security Alert',
@@ -296,7 +298,7 @@ function handleFailedAttempt() {
       defaultId: 0,
       noLink: true,
     }).then(() => {
-      if (_secureDeleteAllSessions) _secureDeleteAllSessions();
+      if (deps.secureDeleteAllSessions) deps.secureDeleteAllSessions();
       app.relaunch();
       app.exit(0);
     });
@@ -325,10 +327,10 @@ function handleFailedAttempt() {
  * @returns {object} Lockout status
  */
 function checkLockout() {
-  const attempts = store.get('security.failedAttempts', 0);
-  const maxAttempts = store.get('security.maxAttempts', SECURITY_DEFAULTS.maxAttempts);
-  const lastFailed = store.get('security.lastFailedAttempt', 0);
-  const lockoutDuration = store.get('security.lockoutDuration', SECURITY_DEFAULTS.lockoutDuration) * 60 * 1000;
+  const attempts = deps.store.get('security.failedAttempts', 0);
+  const maxAttempts = deps.store.get('security.maxAttempts', SECURITY_DEFAULTS.maxAttempts);
+  const lastFailed = deps.store.get('security.lastFailedAttempt', 0);
+  const lockoutDuration = deps.store.get('security.lockoutDuration', SECURITY_DEFAULTS.lockoutDuration) * 60 * 1000;
 
   if (attempts >= maxAttempts) {
     const elapsed = Date.now() - lastFailed;
@@ -350,8 +352,8 @@ function checkLockout() {
  * Reset failed attempts counter.
  */
 function resetFailedAttempts() {
-  store.set('security.failedAttempts', 0);
-  store.delete('security.lastFailedAttempt');
+  deps.store.set('security.failedAttempts', 0);
+  deps.store.delete('security.lastFailedAttempt');
 }
 
 // ---------------------------------------------------------------------------

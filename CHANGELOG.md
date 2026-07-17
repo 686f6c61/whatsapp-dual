@@ -16,17 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Settings contract**: `security:saveSettings` no longer reports success when asked to enable the PIN while none is configured; the renderer is now told the payload was not fully applied
+- **PIN setup feedback**: The "Failed to set PIN" message is no longer wiped immediately after being shown when saving a new PIN fails
 - **Accessibility**: Added an accessible label to the PIN input on the lock and PIN setup screens
 
 ### Changed
 
 - **Decoupling**: `view-manager` now notifies unread-badge changes through a callback injected from `main.js` instead of requiring the tray module; the application menu receives `security` and `updater` as injected dependencies; the security sub-modules share a single `inject()` dependency-injection pattern
+- **Module state**: Grouped the dispersed module-level mutable variables of the main process into a single `state`/`deps` container per module (35 loose variables reduced to 3 justified singles)
+- **Sender validation**: The duplicated IPC sender checks in `ipc-handlers.js` and `security.js` now share a single implementation (`sender-validation.js`)
+- **Conditional logging**: Debug `console.log` calls now go through `shared/logger.js`, silent in packaged builds (re-enable with `WHATSAPP_DUAL_DEBUG=1`); the window title account name comes from the `ACCOUNTS` constants instead of a hardcoded mapping
 - **Shared renderer i18n**: The translation helper `t()` used by the settings, lock, and PIN setup pages now lives in a single shared script (`js/i18n-helper.js`) instead of three duplicated copies
 
 ### Added
 
-- **Regression tests**: 36 new tests (32 → 68), including the i18n path traversal fix, secure deletion, session integrity verification, IPC sender validation, PBKDF2 migration, and menu dependency injection
-- **Coverage tooling**: Installed `@vitest/coverage-v8` so the coverage configuration in `vitest.config.js` is actually runnable (`npx vitest run --coverage`); first measured baseline is 18% of lines
+- **Regression tests**: 71 new tests (32 → 103), including the i18n path traversal fix, secure deletion, session integrity verification, IPC sender validation, PBKDF2 migration, and menu dependency injection
+- **Renderer UI tests**: DOM test suites (happy-dom) for the lock screen, PIN setup (both setup and change modes), and settings window, exercised against the real page markup; renderer line coverage is now 82%
+- **Coverage tooling**: Installed `@vitest/coverage-v8` so the coverage configuration in `vitest.config.js` is actually runnable (`npx vitest run --coverage`); overall line coverage went from an unmeasurable 0% to 50%
 
 ## [1.5.2] - 2026-04-29
 

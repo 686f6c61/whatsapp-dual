@@ -8,7 +8,7 @@ export default defineConfig({
     setupFiles: ['tests/setup.js'],
     coverage: {
       include: ['src/**/*.js'],
-      exclude: ['src/renderer/**', 'src/main/preload-*.js']
+      exclude: ['src/main/preload-*.js']
     }
   }
 });

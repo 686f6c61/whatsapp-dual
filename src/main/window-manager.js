@@ -25,50 +25,48 @@ const help = require('./help');
 // Window State
 // =============================================================================
 
-/** @type {BrowserWindow|null} Main application window */
-let mainWindow = null;
-
-/** @type {BrowserWindow|null} Settings modal window */
-let settingsWindow = null;
-
-/** @type {BrowserWindow|null} Lock screen window */
-let lockWindow = null;
-
-/** @type {boolean} Flag to track if app is in quitting state */
-let isQuitting = false;
-
-/** @type {boolean} Flag to track if lock screen is showing */
-let isShowingLockScreen = false;
+const state = {
+  /** @type {BrowserWindow|null} Main application window */
+  mainWindow: null,
+  /** @type {BrowserWindow|null} Settings modal window */
+  settingsWindow: null,
+  /** @type {BrowserWindow|null} Lock screen window */
+  lockWindow: null,
+  /** @type {boolean} Flag to track if app is in quitting state */
+  isQuitting: false,
+  /** @type {boolean} Flag to track if lock screen is showing */
+  isShowingLockScreen: false,
+};
 
 // =============================================================================
 // Getters
 // =============================================================================
 
 /** @returns {BrowserWindow|null} */
-function getMainWindow() { return mainWindow; }
+function getMainWindow() { return state.mainWindow; }
 
 /** @returns {BrowserWindow|null} */
-function getSettingsWindow() { return settingsWindow; }
+function getSettingsWindow() { return state.settingsWindow; }
 
 /** @returns {BrowserWindow|null} */
-function getLockWindow() { return lockWindow; }
+function getLockWindow() { return state.lockWindow; }
 
 /** @returns {boolean} */
-function getIsQuitting() { return isQuitting; }
+function getIsQuitting() { return state.isQuitting; }
 
 /** @returns {boolean} */
-function getIsShowingLockScreen() { return isShowingLockScreen; }
+function getIsShowingLockScreen() { return state.isShowingLockScreen; }
 
 // =============================================================================
 // Setters
 // =============================================================================
 
 /** Sets the quitting flag. */
-function setIsQuitting(value) { isQuitting = value; }
+function setIsQuitting(value) { state.isQuitting = value; }
 
 /** Sets quitting flag and quits the app. Used by menu and tray. */
 function quitApp(app) {
-  isQuitting = true;
+  state.isQuitting = true;
   app.quit();
 }
 
@@ -86,7 +84,7 @@ function quitApp(app) {
 function createWindow({ store }) {
   const startMinimized = store.get('startMinimized', false);
 
-  mainWindow = new BrowserWindow({
+  state.mainWindow = new BrowserWindow({
     width: WINDOW_CONFIG.width,
     height: WINDOW_CONFIG.height,
     minWidth: WINDOW_CONFIG.minWidth,
@@ -102,13 +100,13 @@ function createWindow({ store }) {
       sandbox: true
     }
   });
-  mainWindow.contentView.setBackgroundColor('#111b21');
+  state.mainWindow.contentView.setBackgroundColor('#111b21');
 
-  mainWindow.on('closed', () => {
-    mainWindow = null;
+  state.mainWindow.on('closed', () => {
+    state.mainWindow = null;
   });
 
-  return mainWindow;
+  return state.mainWindow;
 }
 
 // =============================================================================
@@ -124,19 +122,19 @@ function createWindow({ store }) {
  * @returns {void}
  */
 function createSettingsWindow() {
-  if (isShowingLockScreen) return;
+  if (state.isShowingLockScreen) return;
 
-  if (settingsWindow) {
-    settingsWindow.focus();
+  if (state.settingsWindow) {
+    state.settingsWindow.focus();
     return;
   }
 
-  settingsWindow = new BrowserWindow({
+  state.settingsWindow = new BrowserWindow({
     width: 480,
     height: 700,
     minWidth: 400,
     minHeight: 600,
-    parent: mainWindow,
+    parent: state.mainWindow,
     modal: true,
     title: 'Settings',
     icon: path.join(__dirname, '../../assets/icons/icon.png'),
@@ -151,11 +149,11 @@ function createSettingsWindow() {
     }
   });
 
-  settingsWindow.setMenuBarVisibility(false);
-  settingsWindow.loadFile(path.join(__dirname, '../renderer/settings.html'));
+  state.settingsWindow.setMenuBarVisibility(false);
+  state.settingsWindow.loadFile(path.join(__dirname, '../renderer/settings.html'));
 
-  settingsWindow.on('closed', () => {
-    settingsWindow = null;
+  state.settingsWindow.on('closed', () => {
+    state.settingsWindow = null;
   });
 }
 
@@ -172,7 +170,7 @@ function createSettingsWindow() {
 function createAboutWindow(app) {
   const appVersion = app.getVersion();
 
-  dialog.showMessageBox(mainWindow, {
+  dialog.showMessageBox(state.mainWindow, {
     type: 'info',
     title: i18n.t('about.title', 'About WhatsApp Dual'),
     message: 'WhatsApp Dual',
@@ -206,22 +204,22 @@ function createAboutWindow(app) {
  * @returns {void}
  */
 function showLockScreen({ removeAllViews }) {
-  if (lockWindow) {
-    lockWindow.focus();
+  if (state.lockWindow) {
+    state.lockWindow.focus();
     return;
   }
 
-  isShowingLockScreen = true;
+  state.isShowingLockScreen = true;
 
   // Hide main window views
-  if (mainWindow) {
+  if (state.mainWindow) {
     removeAllViews();
   }
 
-  lockWindow = new BrowserWindow({
+  state.lockWindow = new BrowserWindow({
     width: 400,
     height: 600,
-    parent: mainWindow,
+    parent: state.mainWindow,
     modal: true,
     frame: false,
     resizable: false,
@@ -240,10 +238,10 @@ function showLockScreen({ removeAllViews }) {
     }
   });
 
-  lockWindow.loadFile(path.join(__dirname, '../renderer/lock.html'));
+  state.lockWindow.loadFile(path.join(__dirname, '../renderer/lock.html'));
 
-  lockWindow.on('closed', () => {
-    lockWindow = null;
+  state.lockWindow.on('closed', () => {
+    state.lockWindow = null;
   });
 }
 
@@ -255,18 +253,18 @@ function showLockScreen({ removeAllViews }) {
  * @returns {void}
  */
 function hideLockScreen({ restoreCurrentView }) {
-  isShowingLockScreen = false;
+  state.isShowingLockScreen = false;
 
-  if (lockWindow) {
-    lockWindow.close();
-    lockWindow = null;
+  if (state.lockWindow) {
+    state.lockWindow.close();
+    state.lockWindow = null;
   }
 
   // Restore main window view
-  if (mainWindow) {
+  if (state.mainWindow) {
     restoreCurrentView();
-    mainWindow.show();
-    mainWindow.focus();
+    state.mainWindow.show();
+    state.mainWindow.focus();
   }
 }
 
@@ -277,14 +275,14 @@ function hideLockScreen({ restoreCurrentView }) {
  * @returns {void}
  */
 function showPINSetupScreen(mode = 'setup') {
-  if (lockWindow) {
-    lockWindow.close();
+  if (state.lockWindow) {
+    state.lockWindow.close();
   }
 
-  lockWindow = new BrowserWindow({
+  state.lockWindow = new BrowserWindow({
     width: 360,
     height: 580,
-    parent: mainWindow,
+    parent: state.mainWindow,
     modal: false,
     frame: false,
     resizable: false,
@@ -302,13 +300,13 @@ function showPINSetupScreen(mode = 'setup') {
     }
   });
 
-  lockWindow.loadFile(path.join(__dirname, '../renderer/lock-setup.html'), {
+  state.lockWindow.loadFile(path.join(__dirname, '../renderer/lock-setup.html'), {
     query: { mode }
   });
 
-  lockWindow.on('closed', () => {
-    lockWindow = null;
-    isShowingLockScreen = false;
+  state.lockWindow.on('closed', () => {
+    state.lockWindow = null;
+    state.isShowingLockScreen = false;
   });
 }
 

@@ -25,29 +25,25 @@ const path = require('node:path');
 const i18n = require('../shared/i18n');
 
 // =============================================================================
-// Module State
+// Module State (single container)
 // =============================================================================
 
-/** @type {Tray|null} The system tray instance */
-let tray = null;
-
-/** @type {BrowserWindow|null} Reference to the main window */
-let mainWindow = null;
-
-/** @type {NativeImage|null} Normal tray icon */
-let normalIcon = null;
-
-/** @type {NativeImage|null} Message notification icon */
-let messageIcon = null;
-
-/** @type {boolean} Current notification state */
-let hasNotification = false;
-
-/** @type {Function|null} Callback to switch accounts */
-let _switchAccountFn = null;
-
-/** @type {Function|null} Callback to quit app properly */
-let _quitFn = null;
+const state = {
+  /** @type {Tray|null} The system tray instance */
+  tray: null,
+  /** @type {BrowserWindow|null} Reference to the main window */
+  mainWindow: null,
+  /** @type {NativeImage|null} Normal tray icon */
+  normalIcon: null,
+  /** @type {NativeImage|null} Message notification icon */
+  messageIcon: null,
+  /** @type {boolean} Current notification state */
+  hasNotification: false,
+  /** @type {Function|null} Callback to switch accounts */
+  switchAccountFn: null,
+  /** @type {Function|null} Callback to quit app properly */
+  quitFn: null,
+};
 
 // =============================================================================
 // Tray Creation
@@ -66,39 +62,48 @@ let _quitFn = null;
  * @returns {Tray} The created tray instance
  */
 function createTray(window, switchAccountFn, quitFn) {
-  mainWindow = window;
-  _switchAccountFn = switchAccountFn;
-  _quitFn = quitFn;
+  state.mainWindow = window;
+  state.switchAccountFn = switchAccountFn;
+  state.quitFn = quitFn;
 
   // Load and resize the normal tray icon
   const iconPath = path.join(__dirname, '../../assets/icons/icon.png');
   const icon = nativeImage.createFromPath(iconPath);
-  normalIcon = icon.resize({ width: 22, height: 22 });
+  state.normalIcon = icon.resize({ width: 22, height: 22 });
 
   // Load and resize the message notification icon
   const messageIconPath = path.join(__dirname, '../../assets/icons/icon-message.png');
   const msgIcon = nativeImage.createFromPath(messageIconPath);
-  messageIcon = msgIcon.resize({ width: 22, height: 22 });
+  state.messageIcon = msgIcon.resize({ width: 22, height: 22 });
 
-  tray = new Tray(normalIcon);
-  tray.setToolTip('WhatsApp Dual');
+  state.tray = new Tray(state.normalIcon);
+  state.tray.setToolTip('WhatsApp Dual');
 
   // Initialize context menu
   updateContextMenu();
 
   // Toggle window visibility on tray icon click
-  tray.on('click', () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
-      } else {
-        mainWindow.show();
-        mainWindow.focus();
-      }
-    }
+  state.tray.on('click', () => {
+    toggleMainWindow();
   });
 
-  return tray;
+  return state.tray;
+}
+
+/**
+ * Shows the main window (focused) or hides it if already visible.
+ *
+ * @returns {void}
+ */
+function toggleMainWindow() {
+  if (!state.mainWindow) return;
+
+  if (state.mainWindow.isVisible()) {
+    state.mainWindow.hide();
+  } else {
+    state.mainWindow.show();
+    state.mainWindow.focus();
+  }
 }
 
 // =============================================================================
@@ -122,23 +127,16 @@ function createTray(window, switchAccountFn, quitFn) {
  * @returns {void}
  */
 function updateContextMenu() {
-  if (!tray) return;
+  if (!state.tray) return;
 
   const contextMenu = Menu.buildFromTemplate([
     // Show/Hide toggle - label reflects current state
     {
-      label: mainWindow?.isVisible()
+      label: state.mainWindow?.isVisible()
         ? i18n.t('tray.hide', 'Hide')
         : i18n.t('tray.show', 'Show'),
       click: () => {
-        if (mainWindow) {
-          if (mainWindow.isVisible()) {
-            mainWindow.hide();
-          } else {
-            mainWindow.show();
-            mainWindow.focus();
-          }
-        }
+        toggleMainWindow();
       }
     },
     { type: 'separator' },
@@ -147,24 +145,24 @@ function updateContextMenu() {
     {
       label: i18n.t('menu.personal', 'Personal'),
       click: () => {
-        if (_switchAccountFn) {
-          _switchAccountFn('personal');
+        if (state.switchAccountFn) {
+          state.switchAccountFn('personal');
         }
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
+        if (state.mainWindow) {
+          state.mainWindow.show();
+          state.mainWindow.focus();
         }
       }
     },
     {
       label: i18n.t('menu.business', 'Business'),
       click: () => {
-        if (_switchAccountFn) {
-          _switchAccountFn('business');
+        if (state.switchAccountFn) {
+          state.switchAccountFn('business');
         }
-        if (mainWindow) {
-          mainWindow.show();
-          mainWindow.focus();
+        if (state.mainWindow) {
+          state.mainWindow.show();
+          state.mainWindow.focus();
         }
       }
     },
@@ -174,8 +172,8 @@ function updateContextMenu() {
     {
       label: i18n.t('tray.quit', 'Quit'),
       click: () => {
-        if (_quitFn) {
-          _quitFn();
+        if (state.quitFn) {
+          state.quitFn();
         } else {
           app.quit();
         }
@@ -183,7 +181,7 @@ function updateContextMenu() {
     }
   ]);
 
-  tray.setContextMenu(contextMenu);
+  state.tray.setContextMenu(contextMenu);
 }
 
 // =============================================================================
@@ -199,9 +197,9 @@ function updateContextMenu() {
  * @returns {void}
  */
 function destroyTray() {
-  if (tray) {
-    tray.destroy();
-    tray = null;
+  if (state.tray) {
+    state.tray.destroy();
+    state.tray = null;
   }
 }
 
@@ -219,19 +217,19 @@ function destroyTray() {
  * @returns {void}
  */
 function setNotificationState(hasMessages) {
-  if (!tray) return;
+  if (!state.tray) return;
 
   // Only update if state changed
-  if (hasNotification === hasMessages) return;
+  if (state.hasNotification === hasMessages) return;
 
-  hasNotification = hasMessages;
+  state.hasNotification = hasMessages;
 
-  if (hasMessages && messageIcon) {
-    tray.setImage(messageIcon);
-    tray.setToolTip('WhatsApp Dual - New messages');
-  } else if (normalIcon) {
-    tray.setImage(normalIcon);
-    tray.setToolTip('WhatsApp Dual');
+  if (hasMessages && state.messageIcon) {
+    state.tray.setImage(state.messageIcon);
+    state.tray.setToolTip('WhatsApp Dual - New messages');
+  } else if (state.normalIcon) {
+    state.tray.setImage(state.normalIcon);
+    state.tray.setToolTip('WhatsApp Dual');
   }
 }
 

@@ -12,23 +12,26 @@ const { app, dialog } = require('electron');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const logger = require('../../shared/logger');
 
 // ---------------------------------------------------------------------------
 // Dependencies injected from outside
 // ---------------------------------------------------------------------------
-let _store = null;
-let _resetFailedAttempts = null;
+const deps = {
+  store: null,
+  resetFailedAttempts: null,
+};
 
 /**
  * Inject dependencies from the facade.
  *
- * @param {object} deps
- * @param {object}   deps.store
- * @param {Function} deps.resetFailedAttempts
+ * @param {object} injected
+ * @param {object}   injected.store
+ * @param {Function} injected.resetFailedAttempts
  */
-function inject(deps) {
-  _store = deps.store;
-  _resetFailedAttempts = deps.resetFailedAttempts;
+function inject(injected) {
+  deps.store = injected.store;
+  deps.resetFailedAttempts = injected.resetFailedAttempts;
 }
 
 // ---------------------------------------------------------------------------
@@ -47,7 +50,7 @@ function secureSessionFiles() {
     }
 
     setPermissionsRecursive(partitionsPath);
-    console.log('Session files secured with restrictive permissions');
+    logger.debug('Session files secured with restrictive permissions');
   } catch (error) {
     console.error('Error securing session files:', error);
   }
@@ -168,7 +171,7 @@ function saveSessionHashes() {
       timestamp: Date.now()
     };
 
-    _store.set('security.sessionHashes', hashes);
+    deps.store.set('security.sessionHashes', hashes);
   } catch (error) {
     console.error('Error saving session hashes:', error);
   }
@@ -180,7 +183,7 @@ function saveSessionHashes() {
  * @returns {object} Integrity status for each account
  */
 function verifySessionIntegrity() {
-  const saved = _store.get('security.sessionHashes');
+  const saved = deps.store.get('security.sessionHashes');
 
   if (!saved) {
     return { verified: true, firstRun: true };
@@ -286,7 +289,7 @@ function secureDeleteSession(partition) {
     // Remove empty directories
     fs.rmSync(sessionPath, { recursive: true, force: true });
 
-    console.log(`Session ${partition} securely deleted`);
+    logger.debug(`Session ${partition} securely deleted`);
   } catch (error) {
     console.error(`Error deleting session ${partition}:`, error);
   }
@@ -298,7 +301,7 @@ function secureDeleteSession(partition) {
 function secureDeleteAllSessions() {
   secureDeleteSession('persist:whatsapp-personal');
   secureDeleteSession('persist:whatsapp-business');
-  _store.delete('security.sessionHashes');
+  deps.store.delete('security.sessionHashes');
 }
 
 /**
@@ -317,9 +320,9 @@ function resetApp() {
     }).then(result => {
       if (result.response === 1) {
         // Delete PIN
-        _store.delete('security.pinData');
-        _store.set('security.pinEnabled', false);
-        _resetFailedAttempts();
+        deps.store.delete('security.pinData');
+        deps.store.set('security.pinEnabled', false);
+        deps.resetFailedAttempts();
 
         // Delete sessions
         secureDeleteAllSessions();

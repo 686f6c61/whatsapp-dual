@@ -17,6 +17,7 @@
 
 const { ipcMain } = require('electron');
 
+const { isAuthorizedSender } = require('./sender-validation');
 const pinManager = require('./security/pin-manager');
 const lockController = require('./security/lock-controller');
 const sessionProtection = require('./security/session-protection');
@@ -128,25 +129,7 @@ function registerIPCHandlers(getWindows) {
    */
   function validateSender(event) {
     if (!getWindows) return true;
-    const windows = getWindows();
-    const authorizedContents = [];
-
-    for (const value of Object.values(windows)) {
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          if (item?.webContents && !item.webContents.isDestroyed()) {
-            authorizedContents.push(item.webContents);
-          }
-        }
-        continue;
-      }
-
-      if (value?.webContents && !value.webContents.isDestroyed()) {
-        authorizedContents.push(value.webContents);
-      }
-    }
-
-    return authorizedContents.includes(event.sender);
+    return isAuthorizedSender(event, getWindows());
   }
   // PIN operations (read-only — no sender validation needed)
   ipcMain.handle('security:isPINSet', () => pinManager.isPINSet());

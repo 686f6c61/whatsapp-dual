@@ -291,13 +291,13 @@ async function loadSecuritySettings() {
 
     // Auto-lock settings
     checkAutolock.checked = settings.autoLockEnabled || false;
-    selectAutolockTimeout.value = settings.autoLockTimeout || 5;
+    selectAutolockTimeout.value = String(settings.autoLockTimeout || 5);
     checkLockSuspend.checked = settings.lockOnSuspend !== false; // Default true
     checkLockScreenlock.checked = settings.lockOnScreenLock !== false; // Default true
 
     // Advanced security
-    selectMaxAttempts.value = settings.maxAttempts || 5;
-    selectLockoutDuration.value = settings.lockoutDuration || 30;
+    selectMaxAttempts.value = String(settings.maxAttempts || 5);
+    selectLockoutDuration.value = String(settings.lockoutDuration || 30);
     checkDeleteOnMax.checked = settings.deleteOnMaxAttempts || false;
 
     // Update UI visibility based on PIN state
