@@ -25,11 +25,16 @@
  */
 
 const path = require('node:path');
+const os = require('node:os');
+const fs = require('node:fs');
+const { spawn } = require('node:child_process');
 const { autoUpdater } = require('electron-updater');
-const { app, dialog, Notification } = require('electron');
+const { app, dialog, shell, Notification } = require('electron');
 const i18n = require('../shared/i18n');
 const help = require('./help');
 const logger = require('../shared/logger');
+const { GITHUB_REPO } = require('../shared/constants');
+const debUpdater = require('./deb-updater');
 
 const APP_ICON_PATH = path.join(__dirname, '../../assets/icons/icon.png');
 
@@ -65,24 +70,32 @@ autoUpdater.autoInstallOnAppQuit = true;
 // =============================================================================
 
 /**
- * Returns whether electron-updater can update the current build.
+ * Determine how the current build receives updates.
  *
- * On Linux, electron-updater only supports automatic updates for AppImage
- * builds. Running the updater from source, .deb, or snap builds prints noisy
- * APPIMAGE warnings that look like launch errors.
+ *   'none'     - Development build running from source; cannot update.
+ *   'appimage' - electron-updater can self-update in place.
+ *   'deb'      - Packaged Linux build that is not an AppImage (.deb/snap);
+ *                updates through the assisted download-and-install flow.
  *
- * @returns {boolean} True if automatic updates are supported
+ * @returns {'none'|'appimage'|'deb'} The update strategy
+ */
+function getUpdateStrategy() {
+  if (!app.isPackaged) {
+    return 'none';
+  }
+  if (process.platform === 'linux' && !process.env.APPIMAGE) {
+    return 'deb';
+  }
+  return 'appimage';
+}
+
+/**
+ * Returns whether electron-updater can update the current build in place.
+ *
+ * @returns {boolean} True if the AppImage self-update path is available
  */
 function isAutoUpdaterSupported() {
-  if (!app.isPackaged) {
-    return false;
-  }
-
-  if (process.platform === 'linux' && !process.env.APPIMAGE) {
-    return false;
-  }
-
-  return true;
+  return getUpdateStrategy() === 'appimage';
 }
 
 /**
@@ -95,7 +108,15 @@ function isAutoUpdaterSupported() {
  * @returns {void}
  */
 function checkForUpdates(silent = true) {
-  if (!isAutoUpdaterSupported()) {
+  const strategy = getUpdateStrategy();
+
+  if (strategy === 'none') {
+    return;
+  }
+
+  if (strategy === 'deb') {
+    // Silent startup check: notify + menu indicator only, no modal dialog
+    checkForDebUpdate(null, { silent: true });
     return;
   }
 
@@ -121,14 +142,21 @@ function checkForUpdates(silent = true) {
  * @returns {void}
  */
 function checkForUpdatesManual(mainWindow) {
-  if (!isAutoUpdaterSupported()) {
+  const strategy = getUpdateStrategy();
+
+  if (strategy === 'deb') {
+    checkForDebUpdate(mainWindow, { silent: false });
+    return;
+  }
+
+  if (strategy === 'none') {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
       title: i18n.t('updates.title', 'Updates'),
       message: i18n.t('updates.unsupportedBuild', 'Automatic updates are not available for this build'),
       detail: i18n.t(
         'updates.unsupportedBuildDetail',
-        'On Linux, automatic updates are available only in the AppImage build. Install the latest release manually or use your package manager.'
+        'This is a development build running from source. Install a packaged release (.deb or AppImage) to receive updates.'
       ),
       buttons: [i18n.t('menu.changelog', 'Changelog'), i18n.t('about.ok', 'OK')]
     }).then(result => {
@@ -172,6 +200,185 @@ function checkForUpdatesManual(mainWindow) {
       message: i18n.t('updates.checkError', 'Could not check for updates'),
       detail: err.message
     });
+  });
+}
+
+// =============================================================================
+// Assisted .deb Update Flow
+// =============================================================================
+
+/**
+ * Check GitHub for a newer .deb and, when found, offer to install it.
+ *
+ * Silent mode (startup) only raises the menu indicator and a desktop
+ * notification. Interactive mode shows a dialog offering to download and
+ * install the update.
+ *
+ * @param {BrowserWindow|null} mainWindow - Parent window for dialogs
+ * @param {object} opts
+ * @param {boolean} opts.silent - If true, no modal dialogs
+ * @returns {Promise<void>}
+ */
+async function checkForDebUpdate(mainWindow, { silent }) {
+  let result;
+  try {
+    result = await debUpdater.checkForNewerDeb({
+      currentVersion: app.getVersion(),
+      fetchManifest: () => debUpdater.fetchManifestText(debUpdater.buildManifestUrl(GITHUB_REPO)),
+    });
+  } catch (err) {
+    logger.debug('deb update check failed:', err.message);
+    if (!silent) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: i18n.t('updates.title', 'Updates'),
+        message: i18n.t('updates.checkError', 'Could not check for updates'),
+        detail: err.message
+      });
+    }
+    return;
+  }
+
+  if (!result.available || !result.deb) {
+    state.updateAvailable = false;
+    state.updateInfo = null;
+    if (state.onUpdateStatusChange) {
+      state.onUpdateStatusChange(false, null);
+    }
+    if (!silent) {
+      showNoUpdatesDialog(mainWindow);
+    }
+    return;
+  }
+
+  // Update available
+  state.updateAvailable = true;
+  state.updateInfo = { version: result.version };
+  if (state.onUpdateStatusChange) {
+    state.onUpdateStatusChange(true, state.updateInfo);
+  }
+
+  if (silent) {
+    if (Notification.isSupported()) {
+      new Notification({
+        title: 'WhatsApp Dual',
+        body: i18n.t('updates.available', 'Update available') + `: v${result.version}`,
+        icon: APP_ICON_PATH
+      }).show();
+    }
+    return;
+  }
+
+  const choice = await dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: i18n.t('updates.title', 'Updates'),
+    message: i18n.t('updates.debInstallMessage', 'Download and install the update?'),
+    icon: APP_ICON_PATH,
+    detail: `${i18n.t('updates.currentVersion', 'Current version')}: ${app.getVersion()}\n` +
+            `${i18n.t('updates.availableVersion', 'Available version')}: ${result.version}\n\n` +
+            i18n.t('updates.debInstallDetail', 'The new package will be downloaded and installed. Your system will ask for your password to complete the update, and the app will restart automatically.'),
+    buttons: [
+      i18n.t('updates.downloadAndInstall', 'Download and install'),
+      i18n.t('menu.changelog', 'Changelog'),
+      i18n.t('updates.later', 'Later')
+    ],
+    defaultId: 0,
+    cancelId: 2
+  });
+
+  if (choice.response === 0) {
+    await downloadAndInstallDeb(mainWindow, result);
+  } else if (choice.response === 1) {
+    help.openChangelog();
+  }
+}
+
+/**
+ * Download the .deb, verify its checksum, and install it via pkexec.
+ *
+ * @param {BrowserWindow|null} mainWindow - Parent window for dialogs
+ * @param {{version: string, deb: {url: string, sha512: string}}} update - Update info
+ * @returns {Promise<void>}
+ */
+async function downloadAndInstallDeb(mainWindow, update) {
+  const url = debUpdater.buildDebDownloadUrl(GITHUB_REPO, update.deb.url);
+
+  let buffer;
+  try {
+    buffer = await debUpdater.downloadToBuffer(url);
+  } catch (err) {
+    logger.debug('deb download failed:', err.message);
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: i18n.t('updates.title', 'Updates'),
+      message: i18n.t('updates.downloadFailed', 'Could not download the update'),
+      detail: err.message
+    });
+    return;
+  }
+
+  // Integrity check before touching the system
+  if (!debUpdater.verifyChecksum(buffer, update.deb.sha512)) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: i18n.t('updates.title', 'Updates'),
+      message: i18n.t('updates.checksumFailed', 'The downloaded update failed its integrity check and was not installed.')
+    });
+    return;
+  }
+
+  const debPath = debUpdater.debTempPath(app.getPath('temp') || os.tmpdir(), update.deb.url);
+  try {
+    fs.writeFileSync(debPath, buffer);
+  } catch (err) {
+    logger.debug('writing deb failed:', err.message);
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: i18n.t('updates.title', 'Updates'),
+      message: i18n.t('updates.downloadFailed', 'Could not download the update'),
+      detail: err.message
+    });
+    return;
+  }
+
+  debUpdater.installDeb(debPath, {
+    pkexecPath: debUpdater.findPkexec(),
+    spawn,
+    openPath: (p) => shell.openPath(p),
+    onDone: (success) => {
+      if (success) {
+        app.relaunch();
+        app.exit(0);
+      } else if (success === false) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'error',
+          title: i18n.t('updates.title', 'Updates'),
+          message: i18n.t('updates.installFailed', 'The update could not be installed.')
+        });
+      }
+      // success === null: fallback installer opened; leave the app running
+    }
+  });
+}
+
+/**
+ * Show the "no updates available" dialog.
+ *
+ * @param {BrowserWindow|null} mainWindow - Parent window
+ * @returns {void}
+ */
+function showNoUpdatesDialog(mainWindow) {
+  dialog.showMessageBox(mainWindow, {
+    type: 'info',
+    title: i18n.t('updates.title', 'Updates'),
+    message: i18n.t('updates.noUpdates', 'No updates available'),
+    icon: APP_ICON_PATH,
+    detail: i18n.t('updates.upToDate', 'You are using the latest version.'),
+    buttons: [i18n.t('menu.changelog', 'Changelog'), i18n.t('about.ok', 'OK')]
+  }).then(result => {
+    if (result.response === 0) {
+      help.openChangelog();
+    }
   });
 }
 
@@ -374,5 +581,6 @@ module.exports = {
   setUpdateStatusCallback,
   isUpdateAvailable,
   getUpdateInfo,
-  isAutoUpdaterSupported
+  isAutoUpdaterSupported,
+  getUpdateStrategy
 };

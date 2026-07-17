@@ -86,6 +86,12 @@ const WINDOW_CONFIG = {
   minHeight: 600
 };
 
+/**
+ * GitHub repository ("owner/name") used for release update checks.
+ * @constant {string}
+ */
+const GITHUB_REPO = '686f6c61/whatsapp-dual';
+
 // =============================================================================
 // Module Exports
 // =============================================================================
@@ -93,5 +99,6 @@ const WINDOW_CONFIG = {
 module.exports = {
   WHATSAPP_URL,
   ACCOUNTS,
-  WINDOW_CONFIG
+  WINDOW_CONFIG,
+  GITHUB_REPO
 };

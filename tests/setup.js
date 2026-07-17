@@ -13,6 +13,8 @@ const _require = createRequire(import.meta.url);
 const electronMock = {
   app: {
     getPath: () => '/tmp/whatsapp-dual-test',
+    getVersion: () => '1.5.3',
+    getName: () => 'whatsapp-dual',
     relaunch: () => {},
     exit: () => {},
   },

@@ -5,6 +5,17 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2026-07-17
+
+### Added
+
+- **Assisted updates for .deb installs**: `.deb` (and non-AppImage) builds can now update. The app checks GitHub for a newer release on every build type, and when one is found it offers to download the new `.deb`, verifies its SHA512, and installs it via the system package manager (`pkexec apt-get install`, which prompts for your password), then restarts automatically. Previously these builds showed a dead-end "not available" message
+- **Update integrity check**: Downloaded packages are verified against the SHA512 published in the release manifest before installation
+
+### Changed
+
+- **Update strategy detection**: The updater now distinguishes source builds (no updates), AppImage (in-place self-update via electron-updater), and `.deb`/snap (assisted download-and-install); the "unsupported build" message now only appears for development builds run from source
+
 ## [1.5.3] - 2026-07-17
 
 ### Security
