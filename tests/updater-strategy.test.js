@@ -47,3 +47,19 @@ describe('getUpdateStrategy', () => {
     expect(updater.isAutoUpdaterSupported()).toBe(true);
   });
 });
+
+describe('chooseDownloadAction (regression: .deb download must not no-op)', () => {
+  it('routes .deb builds to the assisted install, never the AppImage path', () => {
+    // The original bug: the download button was gated on the AppImage-only
+    // path and silently did nothing on .deb.
+    expect(updater.chooseDownloadAction('deb')).toBe('deb-install');
+  });
+
+  it('routes AppImage builds to the electron-updater download', () => {
+    expect(updater.chooseDownloadAction('appimage')).toBe('appimage-download');
+  });
+
+  it('does nothing for source builds', () => {
+    expect(updater.chooseDownloadAction('none')).toBe('none');
+  });
+});

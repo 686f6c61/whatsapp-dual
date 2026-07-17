@@ -251,9 +251,10 @@ async function checkForDebUpdate(mainWindow, { silent }) {
     return;
   }
 
-  // Update available
+  // Update available — keep the .deb asset so the menu "update available"
+  // path can install it without re-fetching the manifest
   state.updateAvailable = true;
-  state.updateInfo = { version: result.version };
+  state.updateInfo = { version: result.version, deb: result.deb };
   if (state.onUpdateStatusChange) {
     state.onUpdateStatusChange(true, state.updateInfo);
   }
@@ -269,13 +270,50 @@ async function checkForDebUpdate(mainWindow, { silent }) {
     return;
   }
 
+  await confirmAndInstallDeb(mainWindow, state.updateInfo);
+}
+
+/**
+ * Show the "download and install?" dialog for a .deb update and, on
+ * confirmation, run the download-and-install flow.
+ *
+ * @param {BrowserWindow|null} mainWindow - Parent window for dialogs
+ * @param {{version: string, deb: object}} update - Update info (with .deb asset)
+ * @returns {Promise<void>}
+ */
+async function confirmAndInstallDeb(mainWindow, update) {
+  // The .deb asset may be missing if the menu was built from a partial
+  // state; re-fetch the manifest to recover it.
+  if (!update || !update.deb) {
+    try {
+      const fresh = await debUpdater.checkForNewerDeb({
+        currentVersion: app.getVersion(),
+        fetchManifest: () => debUpdater.fetchManifestText(debUpdater.buildManifestUrl(GITHUB_REPO)),
+      });
+      if (!fresh.available || !fresh.deb) {
+        showNoUpdatesDialog(mainWindow);
+        return;
+      }
+      update = { version: fresh.version, deb: fresh.deb };
+      state.updateInfo = update;
+    } catch (err) {
+      dialog.showMessageBox(mainWindow, {
+        type: 'error',
+        title: i18n.t('updates.title', 'Updates'),
+        message: i18n.t('updates.checkError', 'Could not check for updates'),
+        detail: err.message
+      });
+      return;
+    }
+  }
+
   const choice = await dialog.showMessageBox(mainWindow, {
     type: 'info',
     title: i18n.t('updates.title', 'Updates'),
     message: i18n.t('updates.debInstallMessage', 'Download and install the update?'),
     icon: APP_ICON_PATH,
     detail: `${i18n.t('updates.currentVersion', 'Current version')}: ${app.getVersion()}\n` +
-            `${i18n.t('updates.availableVersion', 'Available version')}: ${result.version}\n\n` +
+            `${i18n.t('updates.availableVersion', 'Available version')}: ${update.version}\n\n` +
             i18n.t('updates.debInstallDetail', 'The new package will be downloaded and installed. Your system will ask for your password to complete the update, and the app will restart automatically.'),
     buttons: [
       i18n.t('updates.downloadAndInstall', 'Download and install'),
@@ -287,7 +325,7 @@ async function checkForDebUpdate(mainWindow, { silent }) {
   });
 
   if (choice.response === 0) {
-    await downloadAndInstallDeb(mainWindow, result);
+    await downloadAndInstallDeb(mainWindow, update);
   } else if (choice.response === 1) {
     help.openChangelog();
   }
@@ -302,6 +340,15 @@ async function checkForDebUpdate(mainWindow, { silent }) {
  */
 async function downloadAndInstallDeb(mainWindow, update) {
   const url = debUpdater.buildDebDownloadUrl(GITHUB_REPO, update.deb.url);
+
+  // Immediate feedback: the download can take several seconds
+  if (Notification.isSupported()) {
+    new Notification({
+      title: 'WhatsApp Dual',
+      body: i18n.t('updates.downloading', 'Downloading update…'),
+      icon: APP_ICON_PATH
+    }).show();
+  }
 
   let buffer;
   try {
@@ -481,8 +528,29 @@ autoUpdater.on('update-downloaded', (info) => {
  *
  * @returns {void}
  */
+/**
+ * Decide how a download request should be fulfilled for a given strategy.
+ *
+ * Regression guard: on 'deb' this must be the assisted install, never the
+ * AppImage-only electron-updater path (which silently no-ops on .deb).
+ *
+ * @param {'none'|'appimage'|'deb'} strategy - Current update strategy
+ * @returns {'deb-install'|'appimage-download'|'none'} The download action
+ */
+function chooseDownloadAction(strategy) {
+  if (strategy === 'deb') return 'deb-install';
+  if (strategy === 'appimage') return 'appimage-download';
+  return 'none';
+}
+
 function downloadUpdate() {
-  if (state.updateAvailable && isAutoUpdaterSupported()) {
+  if (!state.updateAvailable) {
+    return;
+  }
+  const action = chooseDownloadAction(getUpdateStrategy());
+  if (action === 'deb-install') {
+    downloadAndInstallDeb(null, state.updateInfo);
+  } else if (action === 'appimage-download') {
     autoUpdater.downloadUpdate();
   }
 }
@@ -501,6 +569,12 @@ function downloadUpdate() {
  * @returns {void}
  */
 function showUpdateDialog(mainWindow) {
+  // On .deb builds, downloading means the assisted download-and-install flow
+  if (getUpdateStrategy() === 'deb') {
+    confirmAndInstallDeb(mainWindow, state.updateInfo);
+    return;
+  }
+
   if (state.updateAvailable && state.updateInfo) {
     dialog.showMessageBox(mainWindow, {
       type: 'info',
@@ -582,5 +656,6 @@ module.exports = {
   isUpdateAvailable,
   getUpdateInfo,
   isAutoUpdaterSupported,
-  getUpdateStrategy
+  getUpdateStrategy,
+  chooseDownloadAction
 };

@@ -5,6 +5,12 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.6] - 2026-07-17
+
+### Fixed
+
+- **`.deb` update did nothing from the menu**: When the startup check had already detected a new version, clicking the "Update available" menu item opened a dialog whose "Download" button silently did nothing on `.deb` builds (it was still gated on the AppImage-only path). Both the menu "Update available" action and the download button now route to the assisted download-and-install flow. Also added a desktop notification when the download starts, so the multi-second download no longer looks frozen
+
 ## [1.5.5] - 2026-07-17
 
 ### Documentation
