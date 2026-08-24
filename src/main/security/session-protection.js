@@ -43,6 +43,14 @@ function inject(injected) {
  */
 function secureSessionFiles() {
   try {
+    // The electron-store config holds the PIN hash, failed-attempt counters
+    // and session hashes; keep it readable by the owner only so a local
+    // user cannot reset security state by editing it
+    const configPath = path.join(app.getPath('userData'), 'config.json');
+    if (fs.existsSync(configPath)) {
+      fs.chmodSync(configPath, 0o600); // rw-------
+    }
+
     const partitionsPath = path.join(app.getPath('userData'), 'Partitions');
 
     if (!fs.existsSync(partitionsPath)) {

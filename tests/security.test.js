@@ -95,9 +95,12 @@ describe('Failed attempts and lockout', () => {
     expect(security.verifyPIN('0000').delay).toBe(5000);
   });
 
-  it('increases delay at higher attempt counts', () => {
+  it('rate-limits further attempts in the main process while a delay is active', () => {
     for (let i = 0; i < 5; i++) security.verifyPIN('0000');
-    expect(security.verifyPIN('0000').delay).toBe(30000);
+    const r = security.verifyPIN('0000');
+    expect(r.success).toBe(false);
+    expect(r.rateLimited).toBe(true);
+    expect(r.delay).toBeGreaterThan(0);
   });
 });
 

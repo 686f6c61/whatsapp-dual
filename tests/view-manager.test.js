@@ -56,3 +56,37 @@ describe('view-manager bounds', () => {
     });
   });
 });
+
+describe('view-manager lock guard', () => {
+  it('refuses to attach WhatsApp views while the app is locked', () => {
+    const added = [];
+    const mainWindow = {
+      contentView: {
+        children: [],
+        addChildView: (v) => added.push(v),
+        removeChildView: () => {},
+      },
+      setTitle: () => {},
+      getContentSize: () => [1100, 700],
+      contentView_getBounds: null,
+    };
+
+    const fakeView = { setBounds: () => {} };
+    // Simulate an existing view by patching getViews through a locked switch
+    const views = viewManager.getViews();
+    views.personal = fakeView;
+
+    try {
+      viewManager.setLockCheckFn(() => true);
+      viewManager.switchAccount('personal', mainWindow);
+      expect(added).toEqual([]);
+
+      viewManager.setLockCheckFn(() => false);
+      viewManager.switchAccount('personal', mainWindow);
+      expect(added).toEqual([fakeView]);
+    } finally {
+      viewManager.setLockCheckFn(() => false);
+      delete views.personal;
+    }
+  });
+});

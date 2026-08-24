@@ -203,12 +203,22 @@ async function checkForNewerDeb({ currentVersion, fetchManifest }) {
  * @param {Function} [fetchImpl] - fetch implementation (defaults to global fetch)
  * @returns {Promise<Buffer>} Downloaded bytes
  */
-async function downloadToBuffer(url, fetchImpl = fetch) {
-  const res = await fetchImpl(url);
+async function downloadToBuffer(url, fetchImpl = fetch, { timeoutMs = 120000 } = {}) {
+  const res = await fetchImpl(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) {
     throw new Error(`Download failed with status ${res.status}`);
   }
-  return Buffer.from(await res.arrayBuffer());
+  const buffer = Buffer.from(await res.arrayBuffer());
+  // Manifest publishes the expected size; reject anything that deviates
+  // before the checksum stage to bound memory exposure.
+  const contentLength = Number(res.headers.get('content-length') || 0);
+  if (contentLength > 0 && buffer.length !== contentLength) {
+    throw new Error(`Download size mismatch: expected ${contentLength}, got ${buffer.length}`);
+  }
+  if (buffer.length > 500 * 1024 * 1024) {
+    throw new Error(`Download too large: ${buffer.length} bytes`);
+  }
+  return buffer;
 }
 
 /**
@@ -299,12 +309,19 @@ function installDeb(debPath, { pkexecPath, spawn, openPath, onDone = () => {} })
 /**
  * Default temp path for a downloaded .deb.
  *
+ * The filename comes from the remote manifest, so only a plain
+ * `[A-Za-z0-9._-]+.deb` name is accepted to prevent path traversal
+ * out of the temp directory if the manifest were tampered with.
+ *
  * @param {string} tmpDir - Temp directory
  * @param {string} filename - Asset filename
  * @returns {string} Absolute path
  */
 function debTempPath(tmpDir, filename) {
-  return path.join(tmpDir, filename);
+  if (!/^[A-Za-z0-9._-]+\.deb$/.test(filename)) {
+    throw new Error(`Invalid .deb filename in manifest: ${filename}`);
+  }
+  return path.join(tmpDir, path.basename(filename));
 }
 
 module.exports = {

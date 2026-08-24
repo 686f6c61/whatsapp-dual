@@ -44,12 +44,15 @@ The following areas are in scope for security reports:
 WhatsApp Dual implements the following security measures:
 
 - **PIN hashing**: PBKDF2-SHA512 with 210,000 iterations (OWASP baseline) and 32-byte random salt; constant-time hash comparison via `crypto.timingSafeEqual`. Records created before v1.5.3 with 100,000 iterations are upgraded transparently on the next successful unlock
+- **PIN rate limiting**: Progressive delays after failed attempts (5 s / 30 s / 5 min) are enforced in the main process before verification, not only in the lock-screen UI
 - **PIN storage**: OS keychain via Electron safeStorage (libsecret on Linux)
+- **Lock screen**: Account switching and view reloads are refused while the app is locked, so tray menu items and keyboard accelerators cannot expose conversations behind the lock window
 - **Session isolation**: Separate Chromium partitions (`persist:whatsapp-personal`, `persist:whatsapp-business`)
 - **Sandboxing**: All renderer processes run with `sandbox: true` and `contextIsolation: true`
 - **IPC validation**: Security-sensitive IPC handlers verify sender identity against known application windows and WhatsApp views
 - **CSP**: Content Security Policy enforced on all HTML pages
-- **File permissions**: Session files restricted to owner-only access (0600/0700)
+- **File permissions**: Session files and the electron-store `config.json` (PIN hash, attempt counters, session hashes) restricted to owner-only access (0600/0700)
+- **Update hardening**: `.deb` downloads verify the manifest SHA512 and declared size, validate the filename against a strict allowlist (no path traversal), enforce a download timeout and size cap, and write the package with 0600 permissions before installation. Releases also publish `SHA256SUMS.txt` as an integrity channel independent of the update manifest
 
 ## Known limitations
 

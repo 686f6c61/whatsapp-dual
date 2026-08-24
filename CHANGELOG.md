@@ -5,6 +5,22 @@ All notable changes to WhatsApp Dual will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-24
+
+### Security
+
+- **Lock screen bypass fixed**: Account switching (tray menu items, `Ctrl+1`/`Ctrl+2` accelerators) and view reload (`Ctrl+R`) could re-attach the WhatsApp views behind the lock screen while the app was locked, exposing conversations without the PIN. All view-switching entry points now refuse to operate while the app is locked
+- **Server-side PIN rate limiting**: The progressive delay after failed PIN attempts (5 s / 30 s / 5 min) was only enforced by the lock-screen renderer; a raw IPC client could brute-force without waiting. The delay is now enforced in the main process before PIN verification
+- **`.deb` update path hardening**: The downloaded package filename from the release manifest is now validated against a strict allowlist (preventing path traversal outside the temp directory if the manifest were tampered with), written with `0600` permissions (mitigating TOCTOU swaps on shared `/tmp` systems), and checked against the manifest-declared size before installation
+- **Update download bounds**: The `.deb` download now has a 2-minute timeout, a 500 MB size cap, and a content-length consistency check, so a hung or oversized response can no longer stall or bloat the main process
+- **Store file permissions**: The electron-store `config.json` (PIN hash, failed-attempt counters, session hashes) is now `chmod 0600` at startup, so other local users cannot read or edit security state
+- **Dependency audit**: Resolved all 18 vulnerabilities reported by `npm audit` (fast-uri, js-yaml, builder-util-runtime, undici, brace-expansion chains); bumped Electron to `41.10.6`, electron-builder to `26.15.3`, and updated the `brace-expansion` overrides to fixed versions. `npm audit` now reports 0 vulnerabilities (runtime and dev)
+- **Release checksums**: The release workflow now publishes `SHA256SUMS.txt` alongside the artifacts (it previously generated it but never uploaded it), giving a second channel to verify downloads independent of the update manifest; the README documents how to use it
+
+### Removed
+
+- **Stray build artifact**: Deleted a leftover untracked `updater.js` copy in the repository root (identical to `src/main/updater.js`, loaded by nothing)
+
 ## [1.5.6] - 2026-07-17
 
 ### Fixed

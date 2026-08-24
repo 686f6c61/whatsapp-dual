@@ -31,6 +31,8 @@ const state = {
   currentAccount: ACCOUNTS.PERSONAL.id,
   /** @type {(hasUnread: boolean) => void} Injected unread callback */
   onUnreadChanged: () => {},
+  /** @type {() => boolean} Injected lock check (security.isAppLocked) */
+  isLockedFn: () => false,
 };
 
 /**
@@ -41,6 +43,18 @@ const state = {
  */
 function setOnUnreadChanged(fn) {
   state.onUnreadChanged = typeof fn === 'function' ? fn : () => {};
+}
+
+/**
+ * Inject the lock-state callback (usually security.isAppLocked).
+ * All view-switching entry points refuse to (re)attach WhatsApp views
+ * while the app is locked, so tray clicks and menu accelerators
+ * cannot bypass the lock screen.
+ *
+ * @param {() => boolean} fn - Callback returning true when the app is locked
+ */
+function setLockCheckFn(fn) {
+  state.isLockedFn = typeof fn === 'function' ? fn : () => false;
 }
 
 /**
@@ -316,6 +330,7 @@ function updateViewBounds(mainWindow) {
  */
 function switchAccount(accountId, mainWindow) {
   if (!mainWindow || !state.views[accountId]) return;
+  if (state.isLockedFn()) return;
 
   state.currentAccount = accountId;
 
@@ -338,6 +353,7 @@ function switchAccount(accountId, mainWindow) {
  * @returns {void}
  */
 function reloadActiveView() {
+  if (state.isLockedFn()) return;
   const view = state.views[state.currentAccount];
   if (view?.webContents) {
     view.webContents.reload();
@@ -363,6 +379,7 @@ function removeAllViews(mainWindow) {
  * @returns {void}
  */
 function restoreCurrentView(mainWindow) {
+  if (state.isLockedFn()) return;
   const view = state.views[state.currentAccount];
   if (view && mainWindow) {
     mainWindow.contentView.children.slice().forEach(v => mainWindow.contentView.removeChildView(v));
@@ -397,5 +414,6 @@ module.exports = {
   setupPermissionHandlers,
   setupDownloadHandler,
   checkForUnreadMessages,
-  setOnUnreadChanged
+  setOnUnreadChanged,
+  setLockCheckFn
 };

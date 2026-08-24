@@ -119,6 +119,7 @@ jobs:
             dist/*.AppImage
             dist/latest-linux.yml
             dist/SHA256SUMS.txt
+            dist/SHA256SUMS.txt
           draft: false
           prerelease: false
         env:

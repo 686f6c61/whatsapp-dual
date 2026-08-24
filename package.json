@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-dual",
-  "version": "1.5.6",
+  "version": "1.6.0",
   "description": "WhatsApp Personal and Business in a single desktop app",
   "main": "src/main/main.js",
   "author": {
@@ -45,8 +45,8 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",
-    "electron": "41.3.0",
-    "electron-builder": "26.8.1",
+    "electron": "41.10.6",
+    "electron-builder": "26.15.3",
     "happy-dom": "^20.10.6",
     "vitest": "^4.1.5"
   },
@@ -56,16 +56,16 @@
     "vite": "8.0.16",
     "picomatch": "4.0.4",
     "minimatch@3.1.5": {
-      "brace-expansion": "1.1.13"
+      "brace-expansion": "1.1.18"
     },
     "minimatch@9.0.9": {
-      "brace-expansion": "2.0.3"
+      "brace-expansion": "2.1.4"
     },
     "minimatch@5.1.9": {
-      "brace-expansion": "2.0.3"
+      "brace-expansion": "2.1.4"
     },
     "minimatch@10.2.4": {
-      "brace-expansion": "5.0.7"
+      "brace-expansion": "5.0.9"
     }
   }
 }

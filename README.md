@@ -70,10 +70,10 @@ The `.deb` package is the recommended installation method for Ubuntu, Debian, Li
 
 ```bash
 # Download the latest release
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.5.6_amd64.deb
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/whatsapp-dual_1.6.0_amd64.deb
 
 # Install the package
-sudo dpkg -i whatsapp-dual_1.5.6_amd64.deb
+sudo dpkg -i whatsapp-dual_1.6.0_amd64.deb
 
 # If you encounter dependency issues, run:
 sudo apt-get install -f
@@ -85,13 +85,22 @@ AppImage provides a distribution-agnostic format that works on most Linux system
 
 ```bash
 # Download the AppImage
-wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.5.6-x86_64.AppImage
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/WhatsAppDual-1.6.0-x86_64.AppImage
 
 # Make it executable
-chmod +x WhatsAppDual-1.5.6-x86_64.AppImage
+chmod +x WhatsAppDual-1.6.0-x86_64.AppImage
 
 # Run the application
-./WhatsAppDual-1.5.6-x86_64.AppImage
+./WhatsAppDual-1.6.0-x86_64.AppImage
+```
+
+### Verifying Downloads
+
+Every release publishes a `SHA256SUMS.txt` with checksums for all artifacts. To verify a download:
+
+```bash
+wget https://github.com/686f6c61/whatsapp-dual/releases/latest/download/SHA256SUMS.txt
+sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
 ### Option 3: Build from Source
@@ -177,7 +186,7 @@ When you need to step away quickly, WhatsApp Dual provides multiple ways to lock
 
 ### Failed Attempts Protection
 
-To prevent unauthorized access through brute force attacks, WhatsApp Dual implements progressive delays and lockouts after failed PIN attempts. The system becomes increasingly restrictive with each failed attempt, making it practically impossible to guess the PIN.
+To prevent unauthorized access through brute force attacks, WhatsApp Dual implements progressive delays and lockouts after failed PIN attempts. The system becomes increasingly restrictive with each failed attempt, making it practically impossible to guess the PIN. The delays are enforced by the main process, not just the lock screen UI, so they cannot be bypassed by manipulating the renderer.
 
 | Failed Attempts | Consequence |
 |-----------------|-------------|

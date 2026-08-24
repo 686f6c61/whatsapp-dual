@@ -159,3 +159,17 @@ describe('installDeb', () => {
     expect(openPath).toHaveBeenCalledWith('/tmp/app.deb');
   });
 });
+
+describe('debTempPath sanitization', () => {
+  it('accepts plain asset filenames', () => {
+    expect(debUpdater.debTempPath('/tmp', 'whatsapp-dual_1.6.0_amd64.deb'))
+      .toBe('/tmp/whatsapp-dual_1.6.0_amd64.deb');
+  });
+
+  it('rejects path traversal and odd names from a tampered manifest', () => {
+    expect(() => debUpdater.debTempPath('/tmp', '../../home/r/evil.deb')).toThrow();
+    expect(() => debUpdater.debTempPath('/tmp', '/etc/evil.deb')).toThrow();
+    expect(() => debUpdater.debTempPath('/tmp', 'evil.deb.exe')).toThrow();
+    expect(() => debUpdater.debTempPath('/tmp', 'a b.deb')).toThrow();
+  });
+});

@@ -119,6 +119,9 @@ function initializeWindow() {
   // Wire unread-badge notifications to the tray (keeps view-manager decoupled)
   viewManager.setOnUnreadChanged(setNotificationState);
 
+  // Block account switching / reloads while the app is locked (lock-bypass fix)
+  viewManager.setLockCheckFn(security.isAppLocked);
+
   // Create WebContentsViews for each WhatsApp account
   viewManager.createWhatsAppViews();
 

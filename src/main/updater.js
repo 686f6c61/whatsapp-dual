@@ -364,7 +364,16 @@ async function downloadAndInstallDeb(mainWindow, update) {
     return;
   }
 
-  // Integrity check before touching the system
+  // Integrity check before touching the system: checksum and, when the
+  // manifest declares it, exact size
+  if (update.deb.size > 0 && buffer.length !== update.deb.size) {
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: i18n.t('updates.title', 'Updates'),
+      message: i18n.t('updates.checksumFailed', 'The downloaded update failed its integrity check and was not installed.')
+    });
+    return;
+  }
   if (!debUpdater.verifyChecksum(buffer, update.deb.sha512)) {
     dialog.showMessageBox(mainWindow, {
       type: 'error',
@@ -374,9 +383,24 @@ async function downloadAndInstallDeb(mainWindow, update) {
     return;
   }
 
-  const debPath = debUpdater.debTempPath(app.getPath('temp') || os.tmpdir(), update.deb.url);
+  let debPath;
   try {
-    fs.writeFileSync(debPath, buffer);
+    debPath = debUpdater.debTempPath(app.getPath('temp') || os.tmpdir(), update.deb.url);
+  } catch (err) {
+    logger.debug('invalid deb filename:', err.message);
+    dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      title: i18n.t('updates.title', 'Updates'),
+      message: i18n.t('updates.downloadFailed', 'Could not download the update'),
+      detail: err.message
+    });
+    return;
+  }
+  try {
+    // 0o600: the file is passed to pkexec; avoid TOCTOU swaps by other
+    // local users on shared /tmp systems
+    fs.writeFileSync(debPath, buffer, { mode: 0o600 });
+    fs.chmodSync(debPath, 0o600);
   } catch (err) {
     logger.debug('writing deb failed:', err.message);
     dialog.showMessageBox(mainWindow, {

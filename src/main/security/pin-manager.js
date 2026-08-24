@@ -174,6 +174,23 @@ function verifyPIN(pin) {
       };
     }
 
+    // Enforce the progressive delay server-side so a compromised renderer
+    // (or a raw IPC client) cannot brute-force faster than the UI allows
+    const failedAttempts = deps.store.get('security.failedAttempts', 0);
+    if (failedAttempts > 0) {
+      const lastFailed = deps.store.get('security.lastFailedAttempt', 0);
+      const delay = getDelayForAttempts(failedAttempts);
+      const elapsed = Date.now() - lastFailed;
+      if (delay > 0 && elapsed < delay) {
+        return {
+          success: false,
+          rateLimited: true,
+          delay: delay - elapsed,
+          message: `Too many attempts. Try again in ${Math.ceil((delay - elapsed) / 1000)} seconds.`
+        };
+      }
+    }
+
     // Get stored PIN data
     const storedData = deps.store.get('security.pinData');
     if (!storedData) {
